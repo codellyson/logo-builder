@@ -9,8 +9,21 @@ import type {
   LineNode,
   PathNode,
   RectNode,
+  StrokeCap,
+  StrokeJoin,
   TextNode,
 } from '@/canvas/types'
+
+const CAP_OPTIONS: { value: StrokeCap; label: string }[] = [
+  { value: 'butt', label: 'Butt' },
+  { value: 'round', label: 'Round' },
+]
+
+const JOIN_OPTIONS: { value: StrokeJoin; label: string }[] = [
+  { value: 'miter', label: 'Miter' },
+  { value: 'round', label: 'Round' },
+  { value: 'bevel', label: 'Bevel' },
+]
 import { ColorPicker } from '@/colors/color-picker'
 import { FontPicker } from '@/fonts/font-picker'
 import { IconPicker } from '@/icons/icon-picker'
@@ -127,13 +140,22 @@ function BooleanFields({ node }: { node: BooleanNode }) {
         />
       </FieldRow>
       {node.stroke && (
-        <FieldRow label="Stroke Width">
-          <NumberField
-            value={node.strokeWidth}
-            min={0}
-            onCommit={(n) => update(node.id, { strokeWidth: n })}
-          />
-        </FieldRow>
+        <>
+          <FieldRow label="Stroke Width">
+            <NumberField
+              value={node.strokeWidth}
+              min={0}
+              onCommit={(n) => update(node.id, { strokeWidth: n })}
+            />
+          </FieldRow>
+          <FieldRow label="Join">
+            <Segmented<StrokeJoin>
+              value={node.strokeJoin ?? 'miter'}
+              options={JOIN_OPTIONS}
+              onChange={(v) => update(node.id, { strokeJoin: v })}
+            />
+          </FieldRow>
+        </>
       )}
       <button
         type="button"
@@ -166,13 +188,29 @@ function PathFields({ node }: { node: PathNode }) {
         />
       </FieldRow>
       {node.stroke && (
-        <FieldRow label="Stroke Width">
-          <NumberField
-            value={node.strokeWidth}
-            min={0}
-            onCommit={(n) => update(node.id, { strokeWidth: n })}
-          />
-        </FieldRow>
+        <>
+          <FieldRow label="Stroke Width">
+            <NumberField
+              value={node.strokeWidth}
+              min={0}
+              onCommit={(n) => update(node.id, { strokeWidth: n })}
+            />
+          </FieldRow>
+          <FieldRow label="Cap">
+            <Segmented<StrokeCap>
+              value={node.strokeCap ?? 'butt'}
+              options={CAP_OPTIONS}
+              onChange={(v) => update(node.id, { strokeCap: v })}
+            />
+          </FieldRow>
+          <FieldRow label="Join">
+            <Segmented<StrokeJoin>
+              value={node.strokeJoin ?? 'miter'}
+              options={JOIN_OPTIONS}
+              onChange={(v) => update(node.id, { strokeJoin: v })}
+            />
+          </FieldRow>
+        </>
       )}
     </div>
   )
@@ -282,13 +320,22 @@ function RectFields({ node }: { node: RectNode }) {
         />
       </FieldRow>
       {node.stroke && (
-        <FieldRow label="Stroke Width">
-          <NumberField
-            value={node.strokeWidth}
-            min={0}
-            onCommit={(n) => update(node.id, { strokeWidth: n })}
-          />
-        </FieldRow>
+        <>
+          <FieldRow label="Stroke Width">
+            <NumberField
+              value={node.strokeWidth}
+              min={0}
+              onCommit={(n) => update(node.id, { strokeWidth: n })}
+            />
+          </FieldRow>
+          <FieldRow label="Join">
+            <Segmented<StrokeJoin>
+              value={node.strokeJoin ?? 'miter'}
+              options={JOIN_OPTIONS}
+              onChange={(v) => update(node.id, { strokeJoin: v })}
+            />
+          </FieldRow>
+        </>
       )}
       <FieldRow label="Corner Radius">
         <NumberField
@@ -348,6 +395,20 @@ function LineFields({ node }: { node: LineNode }) {
           value={node.strokeWidth}
           min={1}
           onCommit={(n) => update(node.id, { strokeWidth: n })}
+        />
+      </FieldRow>
+      <FieldRow label="Cap">
+        <Segmented<StrokeCap>
+          value={node.strokeCap ?? 'butt'}
+          options={CAP_OPTIONS}
+          onChange={(v) => update(node.id, { strokeCap: v })}
+        />
+      </FieldRow>
+      <FieldRow label="Join">
+        <Segmented<StrokeJoin>
+          value={node.strokeJoin ?? 'miter'}
+          options={JOIN_OPTIONS}
+          onChange={(v) => update(node.id, { strokeJoin: v })}
         />
       </FieldRow>
     </div>

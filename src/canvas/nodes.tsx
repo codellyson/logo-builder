@@ -84,6 +84,7 @@ export function NodeRenderer({
         fill={node.fill}
         stroke={node.stroke ?? undefined}
         strokeWidth={node.stroke ? node.strokeWidth : 0}
+        lineJoin={node.strokeJoin ?? 'miter'}
         cornerRadius={node.cornerRadius}
       />
     )
@@ -109,6 +110,8 @@ export function NodeRenderer({
         points={node.points}
         stroke={node.stroke}
         strokeWidth={node.strokeWidth}
+        lineCap={node.strokeCap ?? 'butt'}
+        lineJoin={node.strokeJoin ?? 'miter'}
         hitStrokeWidth={Math.max(12, node.strokeWidth)}
       />
     )
@@ -140,6 +143,8 @@ export function NodeRenderer({
         fill={node.fill ?? undefined}
         stroke={node.stroke ?? undefined}
         strokeWidth={node.stroke ? node.strokeWidth : 0}
+        lineCap={node.strokeCap ?? 'butt'}
+        lineJoin={node.strokeJoin ?? 'miter'}
       />
     )
   }
@@ -165,6 +170,7 @@ export function NodeRenderer({
         fill={node.fill ?? undefined}
         stroke={node.stroke ?? undefined}
         strokeWidth={node.stroke ? node.strokeWidth : 0}
+        lineJoin={node.strokeJoin ?? 'miter'}
       />
     )
   }

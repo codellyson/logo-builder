@@ -86,6 +86,9 @@ importers:
       paper:
         specifier: ^0.12.18
         version: 0.12.18
+      paperjs-offset:
+        specifier: ^1.0.8
+        version: 1.0.8
       posthog-js:
         specifier: ^1.371.2
         version: 1.371.2
@@ -1482,6 +1485,9 @@ packages:
   paper@0.12.18:
     resolution: {integrity: sha512-ZSLIEejQTJZuYHhSSqAf4jXOnii0kPhCJGAnYAANtdS72aNwXJ9cP95tZHgq1tnNpvEwgQhggy+4OarviqTCGw==}
     engines: {node: '>=8.0.0'}
+
+  paperjs-offset@1.0.8:
+    resolution: {integrity: sha512-rUXMtHH4bTNVrCgDcu+x71qyGoPe+01yZtrPD7bowji4VfWiDWzl4EUdRxiZnG5ooPg7b07mk6jVx33hNSojaA==}
 
   parse-bmfont-ascii@1.0.6:
     resolution: {integrity: sha512-U4RrVsUFCleIOBsIGYOMKjn9PavsGOXxbvYGtMOEfnId0SVNsgehXh1DxUdVPLoxd5mvcEtvmKs2Mmf0Mpa1ZA==}
@@ -3125,6 +3131,10 @@ snapshots:
   pako@1.0.11: {}
 
   paper@0.12.18: {}
+
+  paperjs-offset@1.0.8:
+    dependencies:
+      paper: 0.12.18
 
   parse-bmfont-ascii@1.0.6: {}
 

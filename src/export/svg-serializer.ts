@@ -6,11 +6,27 @@ import type {
   LineNode,
   PathNode,
   RectNode,
+  StrokeCap,
+  StrokeJoin,
   TextNode,
 } from '@/canvas/types'
 import { fetchIconSvg } from '@/icons/icon-svg'
 import { textToOutlines } from '@/composition/text-to-outlines'
 import { evaluateBoolean } from '@/composition/evaluate-boolean'
+
+type StrokedAttrs = {
+  stroke?: string | null
+  strokeWidth?: number
+  strokeCap?: StrokeCap
+  strokeJoin?: StrokeJoin
+}
+
+function strokeAttrs(n: StrokedAttrs): string {
+  if (!n.stroke) return ''
+  const cap = n.strokeCap ?? 'butt'
+  const join = n.strokeJoin ?? 'miter'
+  return ` stroke="${n.stroke}" stroke-width="${n.strokeWidth}" stroke-linecap="${cap}" stroke-linejoin="${join}"`
+}
 
 type Opts = {
   width: number
@@ -29,14 +45,12 @@ function escapeXml(s: string): string {
 }
 
 function rectSvg(n: RectNode): string {
-  const stroke = n.stroke ? ` stroke="${n.stroke}" stroke-width="${n.strokeWidth}"` : ''
   const rx = n.cornerRadius ? ` rx="${n.cornerRadius}" ry="${n.cornerRadius}"` : ''
-  return `<rect width="${n.width}" height="${n.height}" fill="${n.fill}"${stroke}${rx}/>`
+  return `<rect width="${n.width}" height="${n.height}" fill="${n.fill}"${strokeAttrs(n)}${rx}/>`
 }
 
 function ellipseSvg(n: EllipseNode): string {
-  const stroke = n.stroke ? ` stroke="${n.stroke}" stroke-width="${n.strokeWidth}"` : ''
-  return `<ellipse rx="${n.radiusX}" ry="${n.radiusY}" fill="${n.fill}"${stroke}/>`
+  return `<ellipse rx="${n.radiusX}" ry="${n.radiusY}" fill="${n.fill}"${strokeAttrs(n)}/>`
 }
 
 function lineSvg(n: LineNode): string {
@@ -44,13 +58,12 @@ function lineSvg(n: LineNode): string {
   if (pts.length < 4) return ''
   let d = `M${pts[0]} ${pts[1]}`
   for (let i = 2; i < pts.length; i += 2) d += `L${pts[i]} ${pts[i + 1]}`
-  return `<path d="${d}" fill="none" stroke="${n.stroke}" stroke-width="${n.strokeWidth}" stroke-linecap="round"/>`
+  return `<path d="${d}" fill="none"${strokeAttrs(n)}/>`
 }
 
 function pathSvg(n: PathNode): string {
   const fill = n.fill ? `fill="${n.fill}"` : 'fill="none"'
-  const stroke = n.stroke ? ` stroke="${n.stroke}" stroke-width="${n.strokeWidth}"` : ''
-  return `<path d="${n.data}" ${fill}${stroke}/>`
+  return `<path d="${n.data}" ${fill}${strokeAttrs(n)}/>`
 }
 
 async function textSvg(n: TextNode): Promise<string> {
@@ -92,8 +105,7 @@ async function booleanSvg(n: BooleanNode, allNodes: CanvasNode[]): Promise<strin
   }
   if (!data) return ''
   const fill = n.fill ? `fill="${n.fill}"` : 'fill="none"'
-  const stroke = n.stroke ? ` stroke="${n.stroke}" stroke-width="${n.strokeWidth}"` : ''
-  return `<path d="${data}" ${fill}${stroke}/>`
+  return `<path d="${data}" ${fill}${strokeAttrs(n)}/>`
 }
 
 async function nodeSvg(

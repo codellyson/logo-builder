@@ -291,7 +291,16 @@ export const useCanvasStore = create<CanvasState & CanvasActions>()(
         const targetSet = new Set(ids)
         const targets = state.nodes.filter((n) => targetSet.has(n.id))
         if (targets.length < 2) return null
-        if (targets.some((t) => t.type === 'line')) return null
+        // Each target must contribute some geometry: either a fill or a visible stroke.
+        // Lines are fine as long as their stroke has positive width.
+        const contributesGeometry = (t: CanvasNode): boolean => {
+          if ('fill' in t && t.fill) return true
+          if ('stroke' in t && t.stroke && 'strokeWidth' in t && t.strokeWidth > 0) return true
+          if (t.type === 'group' || t.type === 'boolean' || t.type === 'text' || t.type === 'icon')
+            return true
+          return false
+        }
+        if (!targets.every(contributesGeometry)) return null
         const parentIds = new Set(targets.map((t) => t.parentId))
         if (parentIds.size > 1) return null
         const sharedParent = targets[0].parentId

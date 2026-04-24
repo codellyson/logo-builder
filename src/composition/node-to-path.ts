@@ -1,9 +1,10 @@
 import paper from 'paper'
-import type { CanvasNode } from '@/canvas/types'
+import type { CanvasNode, LineNode, PathNode, StrokeCap, StrokeJoin } from '@/canvas/types'
 import { ensureInit } from '@/composition/paper-bridge'
 import { rectToPathData, ellipseToPathData } from '@/composition/to-path'
 import { textToOutlines } from '@/composition/text-to-outlines'
 import { fetchIconSvg } from '@/icons/icon-svg'
+import { expandStroke, type ExpandStrokeOptions } from '@/composition/stroke-outline'
 
 export type NodeToPathCtx = {
   childrenOf: Map<string | undefined, CanvasNode[]>
@@ -34,23 +35,65 @@ export async function nodeToWorldPath(
   return local
 }
 
+// --- Stroke helpers ---
+
+type StrokedLike = {
+  stroke: string | null
+  strokeWidth: number
+  strokeCap?: StrokeCap
+  strokeJoin?: StrokeJoin
+}
+
+function nodeStrokeOptions(
+  node: CanvasNode & Partial<StrokedLike>,
+): ExpandStrokeOptions | null {
+  if (!node.stroke || !node.strokeWidth || node.strokeWidth <= 0) return null
+  return {
+    width: node.strokeWidth,
+    cap: node.strokeCap ?? 'butt',
+    join: node.strokeJoin ?? 'miter',
+  }
+}
+
+// Consumes `fillPath` and returns the final geometry (fill + stroke outline united).
+// If the node has no stroke, returns `fillPath` as-is.
+function withStrokeFromFill(
+  node: CanvasNode,
+  fillPath: paper.PathItem,
+): paper.PathItem {
+  const opts = nodeStrokeOptions(node as CanvasNode & Partial<StrokedLike>)
+  if (!opts) return fillPath
+  const center = fillPath.clone({ insert: false }) as paper.PathItem
+  const outline = expandStroke(center as paper.Path | paper.CompoundPath, opts)
+  center.remove()
+  if (!outline) return fillPath
+  const combined = fillPath.unite(outline, { insert: false }) as paper.PathItem
+  fillPath.remove()
+  outline.remove()
+  return combined
+}
+
+// --- Per-type builders ---
+
 async function toLocalPath(
   node: CanvasNode,
   ctx: NodeToPathCtx,
 ): Promise<paper.PathItem | null> {
   if (node.type === 'rect') {
-    return new paper.CompoundPath({ pathData: rectToPathData(node), insert: false })
+    const fill = new paper.CompoundPath({ pathData: rectToPathData(node), insert: false })
+    return withStrokeFromFill(node, fill)
   }
 
   if (node.type === 'ellipse') {
-    // ellipseToPathData produces a path centered at (0, 0). EllipseNode.x/y is the
+    // ellipseToPathData produces a path centered at (0, 0); EllipseNode.x/y is the
     // center too, so the outer translate(node.x, node.y) places it correctly.
-    return new paper.CompoundPath({ pathData: ellipseToPathData(node), insert: false })
+    const fill = new paper.CompoundPath({ pathData: ellipseToPathData(node), insert: false })
+    return withStrokeFromFill(node, fill)
   }
 
-  if (node.type === 'path') {
-    return new paper.CompoundPath({ pathData: node.data, insert: false })
-  }
+  if (node.type === 'path') return localPath(node)
+
+  if (node.type === 'line') return localLine(node)
 
   if (node.type === 'text') {
     const outlined = await textToOutlines(node)
@@ -79,15 +122,57 @@ async function toLocalPath(
   }
 
   if (node.type === 'boolean') {
-    // Nested boolean: use its cached result. If cache is missing, the runner will
-    // re-evaluate this parent once the inner cache lands (see setBooleanCache
-    // ancestor invalidation in the store).
     if (!node.cache || !node.cache.data) return null
-    return new paper.CompoundPath({ pathData: node.cache.data, insert: false })
+    const fill = new paper.CompoundPath({ pathData: node.cache.data, insert: false })
+    return withStrokeFromFill(node, fill)
   }
 
-  // 'line' and any future open-path types are rejected — boolean ops need closed regions
   return null
+}
+
+function localPath(node: PathNode): paper.PathItem | null {
+  const centerline = new paper.CompoundPath({ pathData: node.data, insert: false })
+  const strokeOpts = nodeStrokeOptions(node)
+
+  if (node.fill) {
+    const fill = centerline.clone({ insert: false }) as paper.PathItem
+    if (!strokeOpts) {
+      centerline.remove()
+      return fill
+    }
+    const outline = expandStroke(centerline, strokeOpts)
+    centerline.remove()
+    if (!outline) return fill
+    const combined = fill.unite(outline, { insert: false }) as paper.PathItem
+    fill.remove()
+    outline.remove()
+    return combined
+  }
+
+  // No fill — only the stroke outline contributes.
+  if (!strokeOpts) {
+    centerline.remove()
+    return null
+  }
+  const outline = expandStroke(centerline, strokeOpts)
+  centerline.remove()
+  return outline
+}
+
+function localLine(node: LineNode): paper.PathItem | null {
+  const pts = node.points
+  if (pts.length < 4 || node.strokeWidth <= 0) return null
+  const centerline = new paper.Path({ insert: false })
+  for (let i = 0; i < pts.length; i += 2) {
+    centerline.add(new paper.Point(pts[i], pts[i + 1]))
+  }
+  const outline = expandStroke(centerline, {
+    width: node.strokeWidth,
+    cap: node.strokeCap ?? 'butt',
+    join: node.strokeJoin ?? 'miter',
+  })
+  centerline.remove()
+  return outline
 }
 
 function iconSvgToPath(svg: string, targetWidth: number, targetHeight: number): paper.PathItem | null {

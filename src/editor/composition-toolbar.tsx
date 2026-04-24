@@ -20,11 +20,17 @@ export function CompositionToolbar() {
   )
   const hasText = selected.some((n) => n.type === 'text')
 
-  // Boolean ops need >= 2 closed-region shapes sharing a parent. Lines are open paths and rejected.
+  // Boolean ops need 2+ shapes with fill or a positive-width stroke, sharing a parent.
   const sharedParentOk =
     selected.length >= 2 && new Set(selected.map((n) => n.parentId)).size === 1
-  const canBool =
-    sharedParentOk && selected.length >= 2 && selected.every((n) => n.type !== 'line')
+  const hasGeometry = (n: CanvasNode) => {
+    if ('fill' in n && n.fill) return true
+    if ('stroke' in n && n.stroke && 'strokeWidth' in n && n.strokeWidth > 0) return true
+    if (n.type === 'group' || n.type === 'boolean' || n.type === 'text' || n.type === 'icon')
+      return true
+    return false
+  }
+  const canBool = sharedParentOk && selected.length >= 2 && selected.every(hasGeometry)
 
   const runBoolean = (op: BooleanOp) => {
     if (!canBool) return

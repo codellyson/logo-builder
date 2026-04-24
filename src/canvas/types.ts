@@ -2,6 +2,9 @@ export type NodeType = 'rect' | 'ellipse' | 'line' | 'text' | 'icon' | 'path' | 
 
 export type BooleanOp = 'unite' | 'subtract' | 'intersect' | 'exclude'
 
+export type StrokeCap = 'butt' | 'round'
+export type StrokeJoin = 'miter' | 'round' | 'bevel'
+
 export type BooleanCache = {
   // Path data in the boolean's local frame. Rendered at (node.x, node.y) with
   // (node.rotation) — rotation pivots around the boolean's origin.
@@ -50,6 +53,7 @@ export type RectNode = NodeBase & {
   fill: string
   stroke: string | null
   strokeWidth: number
+  strokeJoin?: StrokeJoin
   cornerRadius: number
 }
 
@@ -67,6 +71,8 @@ export type LineNode = NodeBase & {
   points: number[]
   stroke: string
   strokeWidth: number
+  strokeCap?: StrokeCap
+  strokeJoin?: StrokeJoin
 }
 
 export type TextNode = NodeBase & {
@@ -95,6 +101,8 @@ export type PathNode = NodeBase & {
   fill: string | null
   stroke: string | null
   strokeWidth: number
+  strokeCap?: StrokeCap
+  strokeJoin?: StrokeJoin
   width: number
   height: number
 }
@@ -110,6 +118,7 @@ export type BooleanNode = NodeBase & {
   fill: string | null
   stroke: string | null
   strokeWidth: number
+  strokeJoin?: StrokeJoin
   collapsed?: boolean
   cache: BooleanCache | null
 }
