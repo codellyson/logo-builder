@@ -1,0 +1,439 @@
+import { useCanvasStore } from '@/state/canvas-store'
+import type {
+  BlendMode,
+  BooleanNode,
+  BooleanOp,
+  CanvasNode,
+  EllipseNode,
+  IconNode,
+  LineNode,
+  PathNode,
+  RectNode,
+  TextNode,
+} from '@/canvas/types'
+import { ColorPicker } from '@/colors/color-picker'
+import { FontPicker } from '@/fonts/font-picker'
+import { IconPicker } from '@/icons/icon-picker'
+import { FieldRow, NumberField, Segmented, Slider01, TextField, TextAreaField } from '@/ui/fields'
+
+export function PropertiesPanel() {
+  const nodes = useCanvasStore((s) => s.nodes)
+  const selectedIds = useCanvasStore((s) => s.selectedIds)
+  const selected = nodes.filter((n) => selectedIds.includes(n.id))
+
+  return (
+    <div className="flex h-full flex-col overflow-y-auto">
+      <div className="px-3 pt-3 text-xs font-medium uppercase tracking-wider text-neutral-500">
+        Properties
+      </div>
+      <div className="p-3">
+        {selected.length === 0 && <ArtboardEditor />}
+        {selected.length === 1 && <SingleEditor node={selected[0]} />}
+        {selected.length > 1 && <MultiInfo count={selected.length} />}
+      </div>
+    </div>
+  )
+}
+
+function ArtboardEditor() {
+  const artboardBackground = useCanvasStore((s) => s.artboardBackground)
+  const setArtboardBackground = useCanvasStore((s) => s.setArtboardBackground)
+  const stageWidth = useCanvasStore((s) => s.stageWidth)
+  const stageHeight = useCanvasStore((s) => s.stageHeight)
+  const setStageSize = useCanvasStore((s) => s.setStageSize)
+
+  return (
+    <div className="space-y-3">
+      <div className="text-[10px] uppercase tracking-wider text-neutral-500">Artboard</div>
+      <FieldRow label="Background">
+        <ColorPicker
+          value={artboardBackground}
+          onChange={(hex) => hex && setArtboardBackground(hex)}
+        />
+      </FieldRow>
+      <div className="grid grid-cols-2 gap-2">
+        <FieldRow label="Width">
+          <NumberField
+            value={stageWidth}
+            min={16}
+            onCommit={(n) => setStageSize(n, stageHeight)}
+          />
+        </FieldRow>
+        <FieldRow label="Height">
+          <NumberField
+            value={stageHeight}
+            min={16}
+            onCommit={(n) => setStageSize(stageWidth, n)}
+          />
+        </FieldRow>
+      </div>
+      <div className="pt-1 text-[10px] text-neutral-600">
+        Select a layer to edit its properties.
+      </div>
+    </div>
+  )
+}
+
+function MultiInfo({ count }: { count: number }) {
+  return (
+    <div className="text-xs text-neutral-500">
+      {count} layers selected. Use the Palette panel to apply colors in bulk.
+    </div>
+  )
+}
+
+function SingleEditor({ node }: { node: CanvasNode }) {
+  return (
+    <div className="space-y-4">
+      <CommonFields node={node} />
+      {node.type === 'rect' && <RectFields node={node} />}
+      {node.type === 'ellipse' && <EllipseFields node={node} />}
+      {node.type === 'line' && <LineFields node={node} />}
+      {node.type === 'text' && <TextFields node={node} />}
+      {node.type === 'icon' && <IconFields node={node} />}
+      {node.type === 'path' && <PathFields node={node} />}
+      {node.type === 'boolean' && <BooleanFields node={node} />}
+    </div>
+  )
+}
+
+function BooleanFields({ node }: { node: BooleanNode }) {
+  const update = useCanvasStore((s) => s.updateNode)
+  const changeBooleanOp = useCanvasStore((s) => s.changeBooleanOp)
+  const flattenBoolean = useCanvasStore((s) => s.flattenBoolean)
+  const canFlatten = !!node.cache && !!node.cache.data
+  return (
+    <div className="space-y-2 border-t border-neutral-800 pt-3">
+      <FieldRow label="Op">
+        <Segmented<BooleanOp>
+          value={node.op}
+          options={[
+            { value: 'unite', label: 'Union' },
+            { value: 'subtract', label: 'Sub' },
+            { value: 'intersect', label: 'Int' },
+            { value: 'exclude', label: 'XOR' },
+          ]}
+          onChange={(v) => changeBooleanOp(node.id, v)}
+        />
+      </FieldRow>
+      <FieldRow label="Fill">
+        <ColorPicker value={node.fill} allowNone onChange={(hex) => update(node.id, { fill: hex })} />
+      </FieldRow>
+      <FieldRow label="Stroke">
+        <ColorPicker
+          value={node.stroke}
+          allowNone
+          onChange={(hex) => update(node.id, { stroke: hex })}
+        />
+      </FieldRow>
+      {node.stroke && (
+        <FieldRow label="Stroke Width">
+          <NumberField
+            value={node.strokeWidth}
+            min={0}
+            onCommit={(n) => update(node.id, { strokeWidth: n })}
+          />
+        </FieldRow>
+      )}
+      <button
+        type="button"
+        onClick={() => flattenBoolean(node.id)}
+        disabled={!canFlatten}
+        className="w-full rounded border border-neutral-700 px-2 py-1.5 text-xs text-neutral-300 hover:bg-neutral-800 disabled:cursor-not-allowed disabled:opacity-40"
+      >
+        Flatten to Path
+      </button>
+    </div>
+  )
+}
+
+function PathFields({ node }: { node: PathNode }) {
+  const update = useCanvasStore((s) => s.updateNode)
+  return (
+    <div className="space-y-2 border-t border-neutral-800 pt-3">
+      <FieldRow label="Fill">
+        <ColorPicker
+          value={node.fill}
+          allowNone
+          onChange={(hex) => update(node.id, { fill: hex })}
+        />
+      </FieldRow>
+      <FieldRow label="Stroke">
+        <ColorPicker
+          value={node.stroke}
+          allowNone
+          onChange={(hex) => update(node.id, { stroke: hex })}
+        />
+      </FieldRow>
+      {node.stroke && (
+        <FieldRow label="Stroke Width">
+          <NumberField
+            value={node.strokeWidth}
+            min={0}
+            onCommit={(n) => update(node.id, { strokeWidth: n })}
+          />
+        </FieldRow>
+      )}
+    </div>
+  )
+}
+
+const BLEND_MODES: BlendMode[] = [
+  'source-over',
+  'multiply',
+  'screen',
+  'overlay',
+  'darken',
+  'lighten',
+  'color-dodge',
+  'color-burn',
+  'hard-light',
+  'soft-light',
+  'difference',
+  'exclusion',
+  'hue',
+  'saturation',
+  'color',
+  'luminosity',
+]
+
+const BLEND_LABELS: Record<BlendMode, string> = {
+  'source-over': 'Normal',
+  multiply: 'Multiply',
+  screen: 'Screen',
+  overlay: 'Overlay',
+  darken: 'Darken',
+  lighten: 'Lighten',
+  'color-dodge': 'Color Dodge',
+  'color-burn': 'Color Burn',
+  'hard-light': 'Hard Light',
+  'soft-light': 'Soft Light',
+  difference: 'Difference',
+  exclusion: 'Exclusion',
+  hue: 'Hue',
+  saturation: 'Saturation',
+  color: 'Color',
+  luminosity: 'Luminosity',
+}
+
+function CommonFields({ node }: { node: CanvasNode }) {
+  const update = useCanvasStore((s) => s.updateNode)
+  return (
+    <div className="space-y-2">
+      <FieldRow label="Name">
+        <TextField value={node.name} onCommit={(v) => update(node.id, { name: v || node.name })} />
+      </FieldRow>
+      <div className="grid grid-cols-2 gap-2">
+        <FieldRow label="X">
+          <NumberField value={node.x} onCommit={(n) => update(node.id, { x: n })} />
+        </FieldRow>
+        <FieldRow label="Y">
+          <NumberField value={node.y} onCommit={(n) => update(node.id, { y: n })} />
+        </FieldRow>
+      </div>
+      <FieldRow label="Rotation">
+        <NumberField
+          value={node.rotation}
+          step={1}
+          onCommit={(n) => update(node.id, { rotation: n })}
+          suffix="°"
+        />
+      </FieldRow>
+      <FieldRow label="Opacity">
+        <Slider01 value={node.opacity} onChange={(n) => update(node.id, { opacity: n })} />
+      </FieldRow>
+      <FieldRow label="Blend">
+        <select
+          value={node.blendMode ?? 'source-over'}
+          onChange={(e) => update(node.id, { blendMode: e.target.value as BlendMode })}
+          className="w-full rounded border border-neutral-800 bg-neutral-900 px-2 py-1 text-xs text-neutral-200 outline-none focus:border-neutral-600"
+        >
+          {BLEND_MODES.map((m) => (
+            <option key={m} value={m}>
+              {BLEND_LABELS[m]}
+            </option>
+          ))}
+        </select>
+      </FieldRow>
+    </div>
+  )
+}
+
+function RectFields({ node }: { node: RectNode }) {
+  const update = useCanvasStore((s) => s.updateNode)
+  return (
+    <div className="space-y-2 border-t border-neutral-800 pt-3">
+      <div className="grid grid-cols-2 gap-2">
+        <FieldRow label="Width">
+          <NumberField value={node.width} min={1} onCommit={(n) => update(node.id, { width: n })} />
+        </FieldRow>
+        <FieldRow label="Height">
+          <NumberField value={node.height} min={1} onCommit={(n) => update(node.id, { height: n })} />
+        </FieldRow>
+      </div>
+      <FieldRow label="Fill">
+        <ColorPicker value={node.fill} onChange={(hex) => hex && update(node.id, { fill: hex })} />
+      </FieldRow>
+      <FieldRow label="Stroke">
+        <ColorPicker
+          value={node.stroke}
+          allowNone
+          onChange={(hex) => update(node.id, { stroke: hex })}
+        />
+      </FieldRow>
+      {node.stroke && (
+        <FieldRow label="Stroke Width">
+          <NumberField
+            value={node.strokeWidth}
+            min={0}
+            onCommit={(n) => update(node.id, { strokeWidth: n })}
+          />
+        </FieldRow>
+      )}
+      <FieldRow label="Corner Radius">
+        <NumberField
+          value={node.cornerRadius}
+          min={0}
+          onCommit={(n) => update(node.id, { cornerRadius: n })}
+        />
+      </FieldRow>
+    </div>
+  )
+}
+
+function EllipseFields({ node }: { node: EllipseNode }) {
+  const update = useCanvasStore((s) => s.updateNode)
+  return (
+    <div className="space-y-2 border-t border-neutral-800 pt-3">
+      <div className="grid grid-cols-2 gap-2">
+        <FieldRow label="Radius X">
+          <NumberField value={node.radiusX} min={1} onCommit={(n) => update(node.id, { radiusX: n })} />
+        </FieldRow>
+        <FieldRow label="Radius Y">
+          <NumberField value={node.radiusY} min={1} onCommit={(n) => update(node.id, { radiusY: n })} />
+        </FieldRow>
+      </div>
+      <FieldRow label="Fill">
+        <ColorPicker value={node.fill} onChange={(hex) => hex && update(node.id, { fill: hex })} />
+      </FieldRow>
+      <FieldRow label="Stroke">
+        <ColorPicker
+          value={node.stroke}
+          allowNone
+          onChange={(hex) => update(node.id, { stroke: hex })}
+        />
+      </FieldRow>
+      {node.stroke && (
+        <FieldRow label="Stroke Width">
+          <NumberField
+            value={node.strokeWidth}
+            min={0}
+            onCommit={(n) => update(node.id, { strokeWidth: n })}
+          />
+        </FieldRow>
+      )}
+    </div>
+  )
+}
+
+function LineFields({ node }: { node: LineNode }) {
+  const update = useCanvasStore((s) => s.updateNode)
+  return (
+    <div className="space-y-2 border-t border-neutral-800 pt-3">
+      <FieldRow label="Stroke">
+        <ColorPicker value={node.stroke} onChange={(hex) => hex && update(node.id, { stroke: hex })} />
+      </FieldRow>
+      <FieldRow label="Stroke Width">
+        <NumberField
+          value={node.strokeWidth}
+          min={1}
+          onCommit={(n) => update(node.id, { strokeWidth: n })}
+        />
+      </FieldRow>
+    </div>
+  )
+}
+
+function TextFields({ node }: { node: TextNode }) {
+  const update = useCanvasStore((s) => s.updateNode)
+  return (
+    <div className="space-y-2 border-t border-neutral-800 pt-3">
+      <FieldRow label="Text">
+        <TextAreaField value={node.text} onCommit={(v) => update(node.id, { text: v })} />
+      </FieldRow>
+      <FieldRow label="Font">
+        <FontPicker value={node.fontFamily} onChange={(family) => update(node.id, { fontFamily: family })} />
+      </FieldRow>
+      <div className="grid grid-cols-2 gap-2">
+        <FieldRow label="Size">
+          <NumberField
+            value={node.fontSize}
+            min={4}
+            onCommit={(n) => update(node.id, { fontSize: n })}
+          />
+        </FieldRow>
+        <FieldRow label="Letter Spacing">
+          <NumberField
+            value={node.letterSpacing}
+            step={0.5}
+            onCommit={(n) => update(node.id, { letterSpacing: n })}
+          />
+        </FieldRow>
+      </div>
+      <FieldRow label="Style">
+        <Segmented<TextNode['fontStyle']>
+          value={node.fontStyle}
+          options={[
+            { value: 'normal', label: 'Regular' },
+            { value: 'bold', label: 'Bold' },
+            { value: 'italic', label: 'Italic' },
+            { value: 'bold italic', label: 'B+I' },
+          ]}
+          onChange={(v) => update(node.id, { fontStyle: v })}
+        />
+      </FieldRow>
+      <FieldRow label="Align">
+        <Segmented<TextNode['align']>
+          value={node.align}
+          options={[
+            { value: 'left', label: 'L' },
+            { value: 'center', label: 'C' },
+            { value: 'right', label: 'R' },
+          ]}
+          onChange={(v) => update(node.id, { align: v })}
+        />
+      </FieldRow>
+      <FieldRow label="Width">
+        <NumberField value={node.width} min={20} onCommit={(n) => update(node.id, { width: n })} />
+      </FieldRow>
+      <FieldRow label="Fill">
+        <ColorPicker value={node.fill} onChange={(hex) => hex && update(node.id, { fill: hex })} />
+      </FieldRow>
+    </div>
+  )
+}
+
+function IconFields({ node }: { node: IconNode }) {
+  const update = useCanvasStore((s) => s.updateNode)
+  return (
+    <div className="space-y-2 border-t border-neutral-800 pt-3">
+      <FieldRow label="Icon">
+        <IconPicker
+          value={node.iconName}
+          onChange={(name) => update(node.id, { iconName: name })}
+        />
+      </FieldRow>
+      <FieldRow label="Fill">
+        <ColorPicker value={node.fill} onChange={(hex) => hex && update(node.id, { fill: hex })} />
+      </FieldRow>
+      <div className="grid grid-cols-2 gap-2">
+        <FieldRow label="Width">
+          <NumberField value={node.width} min={8} onCommit={(n) => update(node.id, { width: n })} />
+        </FieldRow>
+        <FieldRow label="Height">
+          <NumberField value={node.height} min={8} onCommit={(n) => update(node.id, { height: n })} />
+        </FieldRow>
+      </div>
+    </div>
+  )
+}
