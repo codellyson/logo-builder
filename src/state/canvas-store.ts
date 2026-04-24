@@ -4,6 +4,10 @@ import { useStore } from 'zustand'
 import type { BooleanCache, BooleanNode, BooleanOp, CanvasNode, GroupNode, PathNode, Viewport } from '@/canvas/types'
 import { newId } from '@/lib/id'
 import { DEFAULT_PALETTE, generatePalette, type Palette } from '@/colors/palette'
+import { getNodeBbox, getSelectionBbox } from '@/composition/bbox'
+
+export type AlignEdge = 'left' | 'hcenter' | 'right' | 'top' | 'vcenter' | 'bottom'
+export type DistributeAxis = 'h' | 'v'
 
 function invalidateBooleanAncestors(
   nodes: CanvasNode[],
@@ -64,6 +68,8 @@ type CanvasActions = {
   flattenBoolean: (id: string) => void
   ungroupBoolean: (id: string) => void
   setEditingBooleanId: (id: string | null) => void
+  alignSelection: (edge: AlignEdge, toArtboard?: boolean) => void
+  distributeSelection: (axis: DistributeAxis) => void
   selectAll: () => void
   nudgeSelected: (dx: number, dy: number) => void
   setViewport: (v: Partial<Viewport>) => void
@@ -430,6 +436,116 @@ export const useCanvasStore = create<CanvasState & CanvasActions>()(
           // keep the Transformer attached to it.
           selectedIds: id ? [] : s.selectedIds,
         })),
+
+      alignSelection: (edge, toArtboard = false) => {
+        const state = get()
+        const ids = state.selectedIds.filter((id) => {
+          const n = state.nodes.find((x) => x.id === id)
+          return n && !n.locked
+        })
+        if (ids.length === 0) return
+        // Artboard anchor works for any selection size; selection anchor needs >=2.
+        if (!toArtboard && ids.length < 2) return
+        const childrenOf = new Map<string | undefined, CanvasNode[]>()
+        for (const n of state.nodes) {
+          const arr = childrenOf.get(n.parentId)
+          if (arr) arr.push(n)
+          else childrenOf.set(n.parentId, [n])
+        }
+        const anchor = toArtboard
+          ? { x: 0, y: 0, width: state.stageWidth, height: state.stageHeight }
+          : getSelectionBbox(state.nodes, ids, childrenOf)
+        if (!anchor) return
+
+        const patches = new Map<string, { x: number; y: number }>()
+        for (const id of ids) {
+          const n = state.nodes.find((x) => x.id === id)
+          if (!n) continue
+          const bbox = getNodeBbox(n)
+          if (!bbox) continue
+          let dx = 0
+          let dy = 0
+          switch (edge) {
+            case 'left':
+              dx = anchor.x - bbox.x
+              break
+            case 'hcenter':
+              dx = anchor.x + anchor.width / 2 - (bbox.x + bbox.width / 2)
+              break
+            case 'right':
+              dx = anchor.x + anchor.width - (bbox.x + bbox.width)
+              break
+            case 'top':
+              dy = anchor.y - bbox.y
+              break
+            case 'vcenter':
+              dy = anchor.y + anchor.height / 2 - (bbox.y + bbox.height / 2)
+              break
+            case 'bottom':
+              dy = anchor.y + anchor.height - (bbox.y + bbox.height)
+              break
+          }
+          if (dx !== 0 || dy !== 0) {
+            patches.set(id, { x: n.x + dx, y: n.y + dy })
+          }
+        }
+        if (patches.size === 0) return
+        set((s) => {
+          const next = s.nodes.map((n) => {
+            const p = patches.get(n.id)
+            return p ? ({ ...n, x: p.x, y: p.y } as CanvasNode) : n
+          })
+          return { nodes: invalidateBooleanAncestors(next, patches.keys()) }
+        })
+      },
+
+      distributeSelection: (axis) => {
+        const state = get()
+        const targets = state.selectedIds
+          .map((id) => state.nodes.find((x) => x.id === id))
+          .filter((n): n is CanvasNode => !!n && !n.locked)
+        if (targets.length < 3) return
+
+        const entries = targets
+          .map((n) => ({ n, b: getNodeBbox(n) }))
+          .filter((e): e is { n: CanvasNode; b: NonNullable<ReturnType<typeof getNodeBbox>> } => !!e.b)
+        if (entries.length < 3) return
+
+        // Sort along the distribution axis by bbox origin
+        entries.sort((a, b) => (axis === 'h' ? a.b.x - b.b.x : a.b.y - b.b.y))
+
+        const first = entries[0].b
+        const last = entries[entries.length - 1].b
+        const totalSpan = axis === 'h' ? last.x + last.width - first.x : last.y + last.height - first.y
+        const totalSize = entries.reduce(
+          (sum, e) => sum + (axis === 'h' ? e.b.width : e.b.height),
+          0,
+        )
+        const gap = (totalSpan - totalSize) / (entries.length - 1)
+
+        const patches = new Map<string, { x: number; y: number }>()
+        let cursor = axis === 'h' ? first.x + first.width + gap : first.y + first.height + gap
+        for (let i = 1; i < entries.length - 1; i++) {
+          const { n, b } = entries[i]
+          const targetPos = cursor
+          const delta = targetPos - (axis === 'h' ? b.x : b.y)
+          if (delta !== 0) {
+            patches.set(n.id, {
+              x: axis === 'h' ? n.x + delta : n.x,
+              y: axis === 'v' ? n.y + delta : n.y,
+            })
+          }
+          cursor += (axis === 'h' ? b.width : b.height) + gap
+        }
+        if (patches.size === 0) return
+        set((s) => {
+          const next = s.nodes.map((n) => {
+            const p = patches.get(n.id)
+            return p ? ({ ...n, x: p.x, y: p.y } as CanvasNode) : n
+          })
+          return { nodes: invalidateBooleanAncestors(next, patches.keys()) }
+        })
+      },
 
       ungroupBoolean: (id) => {
         const state = get()

@@ -1,10 +1,11 @@
-import { useEffect, useState, type ReactNode } from 'react'
+import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { Rect, Ellipse, Line, Text, Image as KonvaImage, Path, Group } from 'react-konva'
 import type Konva from 'konva'
 import type { CanvasNode, IconNode } from '@/canvas/types'
 import { useCanvasStore } from '@/state/canvas-store'
 import { loadIconImage } from '@/icons/icon-svg'
 import { scalePath } from '@/composition/paper-bridge'
+import { polygonPoints, starPoints } from '@/composition/to-path'
 
 type Props = {
   node: CanvasNode
@@ -117,6 +118,14 @@ export function NodeRenderer({
     )
   }
 
+  if (node.type === 'polygon') {
+    return <PolygonKonva node={node} commonProps={commonProps} />
+  }
+
+  if (node.type === 'star') {
+    return <StarKonva node={node} commonProps={commonProps} />
+  }
+
   if (node.type === 'text') {
     return (
       <Text
@@ -176,6 +185,51 @@ export function NodeRenderer({
   }
 
   return <IconKonva node={node} commonProps={commonProps} />
+}
+
+function PolygonKonva({
+  node,
+  commonProps,
+}: {
+  node: Extract<CanvasNode, { type: 'polygon' }>
+  commonProps: Record<string, unknown>
+}) {
+  const points = useMemo(() => polygonPoints(node.sides, node.radius), [node.sides, node.radius])
+  return (
+    <Line
+      {...(commonProps as object)}
+      points={points}
+      closed
+      fill={node.fill}
+      stroke={node.stroke ?? undefined}
+      strokeWidth={node.stroke ? node.strokeWidth : 0}
+      lineJoin={node.strokeJoin ?? 'miter'}
+    />
+  )
+}
+
+function StarKonva({
+  node,
+  commonProps,
+}: {
+  node: Extract<CanvasNode, { type: 'star' }>
+  commonProps: Record<string, unknown>
+}) {
+  const points = useMemo(
+    () => starPoints(node.points, node.outerRadius, node.innerRadius),
+    [node.points, node.outerRadius, node.innerRadius],
+  )
+  return (
+    <Line
+      {...(commonProps as object)}
+      points={points}
+      closed
+      fill={node.fill}
+      stroke={node.stroke ?? undefined}
+      strokeWidth={node.stroke ? node.strokeWidth : 0}
+      lineJoin={node.strokeJoin ?? 'miter'}
+    />
+  )
 }
 
 function IconKonva({
@@ -260,6 +314,23 @@ function bakeScale(node: CanvasNode, scaleX: number, scaleY: number, target: Kon
       data: scalePath(node.data, scaleX, scaleY),
       width: Math.max(1, node.width * scaleX),
       height: Math.max(1, node.height * scaleY),
+    })
+  } else if (node.type === 'polygon') {
+    const avg = (Math.abs(scaleX) + Math.abs(scaleY)) / 2
+    update(node.id, {
+      x,
+      y,
+      rotation,
+      radius: Math.max(1, node.radius * avg),
+    })
+  } else if (node.type === 'star') {
+    const avg = (Math.abs(scaleX) + Math.abs(scaleY)) / 2
+    update(node.id, {
+      x,
+      y,
+      rotation,
+      outerRadius: Math.max(1, node.outerRadius * avg),
+      innerRadius: Math.max(1, node.innerRadius * avg),
     })
   } else if (node.type === 'group') {
     update(node.id, { x, y, rotation })

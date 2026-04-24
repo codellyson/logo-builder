@@ -1,4 +1,13 @@
-import type { CanvasNode, EllipseNode, IconNode, LineNode, RectNode, TextNode } from '@/canvas/types'
+import type {
+  CanvasNode,
+  EllipseNode,
+  IconNode,
+  LineNode,
+  PolygonNode,
+  RectNode,
+  StarNode,
+  TextNode,
+} from '@/canvas/types'
 import { newId } from '@/lib/id'
 
 const base = (name: string, x: number, y: number) => ({
@@ -66,6 +75,42 @@ export function createText(cx: number, cy: number): TextNode {
   }
 }
 
+export function createPolygon(cx: number, cy: number): PolygonNode {
+  return {
+    ...base('Polygon', cx, cy),
+    type: 'polygon',
+    sides: 5,
+    radius: 80,
+    fill: '#f4f4f5',
+    stroke: null,
+    strokeWidth: 2,
+  }
+}
+
+export function createStar(cx: number, cy: number): StarNode {
+  return {
+    ...base('Star', cx, cy),
+    type: 'star',
+    points: 5,
+    outerRadius: 80,
+    innerRadius: 36,
+    fill: '#f4f4f5',
+    stroke: null,
+    strokeWidth: 2,
+  }
+}
+
+// Triangle = polygon with 3 sides. Kept as a separate factory (and toolbar button)
+// because users look for "triangle" by name, not "polygon with 3 sides".
+export function createTriangle(cx: number, cy: number): PolygonNode {
+  return {
+    ...createPolygon(cx, cy),
+    name: 'Triangle',
+    sides: 3,
+    radius: 92, // slightly larger so the visual area matches rect/ellipse defaults
+  }
+}
+
 export function createIcon(cx: number, cy: number, iconName = 'ph:star-bold', fill = '#0a0a0a'): IconNode {
   const size = 128
   return {
@@ -78,7 +123,17 @@ export function createIcon(cx: number, cy: number, iconName = 'ph:star-bold', fi
   }
 }
 
-export type PrimitiveType = Exclude<CanvasNode['type'], 'path' | 'group' | 'boolean'>
+// Toolbar-level tokens. Includes 'triangle' as a polygon preset; the actual node
+// type is still 'polygon'.
+export type PrimitiveType =
+  | 'rect'
+  | 'ellipse'
+  | 'line'
+  | 'text'
+  | 'icon'
+  | 'polygon'
+  | 'star'
+  | 'triangle'
 
 export function createByType(type: PrimitiveType, cx: number, cy: number): CanvasNode {
   switch (type) {
@@ -92,5 +147,11 @@ export function createByType(type: PrimitiveType, cx: number, cy: number): Canva
       return createText(cx, cy)
     case 'icon':
       return createIcon(cx, cy)
+    case 'polygon':
+      return createPolygon(cx, cy)
+    case 'star':
+      return createStar(cx, cy)
+    case 'triangle':
+      return createTriangle(cx, cy)
   }
 }

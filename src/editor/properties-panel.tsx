@@ -8,7 +8,9 @@ import type {
   IconNode,
   LineNode,
   PathNode,
+  PolygonNode,
   RectNode,
+  StarNode,
   StrokeCap,
   StrokeJoin,
   TextNode,
@@ -105,7 +107,122 @@ function SingleEditor({ node }: { node: CanvasNode }) {
       {node.type === 'text' && <TextFields node={node} />}
       {node.type === 'icon' && <IconFields node={node} />}
       {node.type === 'path' && <PathFields node={node} />}
+      {node.type === 'polygon' && <PolygonFields node={node} />}
+      {node.type === 'star' && <StarFields node={node} />}
       {node.type === 'boolean' && <BooleanFields node={node} />}
+    </div>
+  )
+}
+
+function StarFields({ node }: { node: StarNode }) {
+  const update = useCanvasStore((s) => s.updateNode)
+  return (
+    <div className="space-y-2 border-t border-neutral-800 pt-3">
+      <FieldRow label="Points">
+        <NumberField
+          value={node.points}
+          min={3}
+          max={32}
+          onCommit={(n) => update(node.id, { points: Math.max(3, Math.min(32, Math.round(n))) })}
+        />
+      </FieldRow>
+      <div className="grid grid-cols-2 gap-2">
+        <FieldRow label="Outer Radius">
+          <NumberField
+            value={node.outerRadius}
+            min={1}
+            onCommit={(n) => update(node.id, { outerRadius: n })}
+          />
+        </FieldRow>
+        <FieldRow label="Inner Radius">
+          <NumberField
+            value={node.innerRadius}
+            min={1}
+            onCommit={(n) => update(node.id, { innerRadius: Math.max(1, Math.min(node.outerRadius - 1, n)) })}
+          />
+        </FieldRow>
+      </div>
+      <FieldRow label="Fill">
+        <ColorPicker value={node.fill} onChange={(hex) => hex && update(node.id, { fill: hex })} />
+      </FieldRow>
+      <FieldRow label="Stroke">
+        <ColorPicker
+          value={node.stroke}
+          allowNone
+          onChange={(hex) => update(node.id, { stroke: hex })}
+        />
+      </FieldRow>
+      {node.stroke && (
+        <>
+          <FieldRow label="Stroke Width">
+            <NumberField
+              value={node.strokeWidth}
+              min={0}
+              onCommit={(n) => update(node.id, { strokeWidth: n })}
+            />
+          </FieldRow>
+          <FieldRow label="Join">
+            <Segmented<StrokeJoin>
+              value={node.strokeJoin ?? 'miter'}
+              options={JOIN_OPTIONS}
+              onChange={(v) => update(node.id, { strokeJoin: v })}
+            />
+          </FieldRow>
+        </>
+      )}
+    </div>
+  )
+}
+
+function PolygonFields({ node }: { node: PolygonNode }) {
+  const update = useCanvasStore((s) => s.updateNode)
+  return (
+    <div className="space-y-2 border-t border-neutral-800 pt-3">
+      <div className="grid grid-cols-2 gap-2">
+        <FieldRow label="Sides">
+          <NumberField
+            value={node.sides}
+            min={3}
+            max={64}
+            onCommit={(n) => update(node.id, { sides: Math.max(3, Math.min(64, Math.round(n))) })}
+          />
+        </FieldRow>
+        <FieldRow label="Radius">
+          <NumberField
+            value={node.radius}
+            min={1}
+            onCommit={(n) => update(node.id, { radius: n })}
+          />
+        </FieldRow>
+      </div>
+      <FieldRow label="Fill">
+        <ColorPicker value={node.fill} onChange={(hex) => hex && update(node.id, { fill: hex })} />
+      </FieldRow>
+      <FieldRow label="Stroke">
+        <ColorPicker
+          value={node.stroke}
+          allowNone
+          onChange={(hex) => update(node.id, { stroke: hex })}
+        />
+      </FieldRow>
+      {node.stroke && (
+        <>
+          <FieldRow label="Stroke Width">
+            <NumberField
+              value={node.strokeWidth}
+              min={0}
+              onCommit={(n) => update(node.id, { strokeWidth: n })}
+            />
+          </FieldRow>
+          <FieldRow label="Join">
+            <Segmented<StrokeJoin>
+              value={node.strokeJoin ?? 'miter'}
+              options={JOIN_OPTIONS}
+              onChange={(v) => update(node.id, { strokeJoin: v })}
+            />
+          </FieldRow>
+        </>
+      )}
     </div>
   )
 }

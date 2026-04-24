@@ -5,7 +5,9 @@ import type {
   IconNode,
   LineNode,
   PathNode,
+  PolygonNode,
   RectNode,
+  StarNode,
   StrokeCap,
   StrokeJoin,
   TextNode,
@@ -13,6 +15,7 @@ import type {
 import { fetchIconSvg } from '@/icons/icon-svg'
 import { textToOutlines } from '@/composition/text-to-outlines'
 import { evaluateBoolean } from '@/composition/evaluate-boolean'
+import { polygonPoints, starPoints } from '@/composition/to-path'
 
 type StrokedAttrs = {
   stroke?: string | null
@@ -64,6 +67,20 @@ function lineSvg(n: LineNode): string {
 function pathSvg(n: PathNode): string {
   const fill = n.fill ? `fill="${n.fill}"` : 'fill="none"'
   return `<path d="${n.data}" ${fill}${strokeAttrs(n)}/>`
+}
+
+function polygonSvg(n: PolygonNode): string {
+  const pts = polygonPoints(n.sides, n.radius)
+  const joined: string[] = []
+  for (let i = 0; i < pts.length; i += 2) joined.push(`${pts[i]},${pts[i + 1]}`)
+  return `<polygon points="${joined.join(' ')}" fill="${n.fill}"${strokeAttrs(n)}/>`
+}
+
+function starSvg(n: StarNode): string {
+  const pts = starPoints(n.points, n.outerRadius, n.innerRadius)
+  const joined: string[] = []
+  for (let i = 0; i < pts.length; i += 2) joined.push(`${pts[i]},${pts[i + 1]}`)
+  return `<polygon points="${joined.join(' ')}" fill="${n.fill}"${strokeAttrs(n)}/>`
 }
 
 async function textSvg(n: TextNode): Promise<string> {
@@ -133,6 +150,8 @@ async function nodeSvg(
   else if (n.type === 'ellipse') body = ellipseSvg(n)
   else if (n.type === 'line') body = lineSvg(n)
   else if (n.type === 'path') body = pathSvg(n)
+  else if (n.type === 'polygon') body = polygonSvg(n)
+  else if (n.type === 'star') body = starSvg(n)
   else if (n.type === 'text') body = await textSvg(n)
   else if (n.type === 'icon') body = await iconSvg(n)
   else if (n.type === 'boolean') body = await booleanSvg(n, allNodes)

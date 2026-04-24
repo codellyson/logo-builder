@@ -1,4 +1,4 @@
-export type NodeType = 'rect' | 'ellipse' | 'line' | 'text' | 'icon' | 'path' | 'group' | 'boolean'
+export type NodeType = 'rect' | 'ellipse' | 'line' | 'text' | 'icon' | 'path' | 'group' | 'boolean' | 'polygon' | 'star'
 
 export type BooleanOp = 'unite' | 'subtract' | 'intersect' | 'exclude'
 
@@ -107,6 +107,27 @@ export type PathNode = NodeBase & {
   height: number
 }
 
+export type PolygonNode = NodeBase & {
+  type: 'polygon'
+  sides: number   // >= 3
+  radius: number  // circumscribed radius
+  fill: string
+  stroke: string | null
+  strokeWidth: number
+  strokeJoin?: StrokeJoin
+}
+
+export type StarNode = NodeBase & {
+  type: 'star'
+  points: number         // >= 3
+  outerRadius: number
+  innerRadius: number    // 0 < inner < outer
+  fill: string
+  stroke: string | null
+  strokeWidth: number
+  strokeJoin?: StrokeJoin
+}
+
 export type GroupNode = NodeBase & {
   type: 'group'
   collapsed?: boolean
@@ -130,6 +151,8 @@ export type CanvasNode =
   | TextNode
   | IconNode
   | PathNode
+  | PolygonNode
+  | StarNode
   | GroupNode
   | BooleanNode
 

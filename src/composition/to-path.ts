@@ -1,4 +1,12 @@
-import type { CanvasNode, EllipseNode, LineNode, PathNode, RectNode } from '@/canvas/types'
+import type {
+  CanvasNode,
+  EllipseNode,
+  LineNode,
+  PathNode,
+  PolygonNode,
+  RectNode,
+  StarNode,
+} from '@/canvas/types'
 import { pathBounds, translatePath } from '@/composition/paper-bridge'
 import { newId } from '@/lib/id'
 
@@ -12,6 +20,49 @@ export function ellipseToPathData(n: EllipseNode): string {
   const rx = n.radiusX
   const ry = n.radiusY
   return `M${-rx} 0A${rx} ${ry} 0 1 0 ${rx} 0A${rx} ${ry} 0 1 0 ${-rx} 0Z`
+}
+
+// Vertices for a regular N-gon, centered at (0, 0), first vertex pointing up.
+export function polygonPoints(sides: number, radius: number): number[] {
+  const pts: number[] = []
+  const n = Math.max(3, Math.floor(sides))
+  const start = -Math.PI / 2
+  for (let i = 0; i < n; i++) {
+    const a = start + (i * 2 * Math.PI) / n
+    pts.push(radius * Math.cos(a), radius * Math.sin(a))
+  }
+  return pts
+}
+
+export function polygonToPathData(n: PolygonNode): string {
+  const pts = polygonPoints(n.sides, n.radius)
+  if (pts.length < 4) return ''
+  let d = `M${pts[0]} ${pts[1]}`
+  for (let i = 2; i < pts.length; i += 2) d += `L${pts[i]} ${pts[i + 1]}`
+  return d + 'Z'
+}
+
+// Vertices for a regular N-pointed star, centered at (0, 0), first point up.
+// Alternates outer and inner radii around 2π / (points * 2) increments.
+export function starPoints(points: number, outerRadius: number, innerRadius: number): number[] {
+  const p = Math.max(3, Math.floor(points))
+  const pts: number[] = []
+  const start = -Math.PI / 2
+  const step = Math.PI / p
+  for (let i = 0; i < p * 2; i++) {
+    const r = i % 2 === 0 ? outerRadius : innerRadius
+    const a = start + i * step
+    pts.push(r * Math.cos(a), r * Math.sin(a))
+  }
+  return pts
+}
+
+export function starToPathData(n: StarNode): string {
+  const pts = starPoints(n.points, n.outerRadius, n.innerRadius)
+  if (pts.length < 4) return ''
+  let d = `M${pts[0]} ${pts[1]}`
+  for (let i = 2; i < pts.length; i += 2) d += `L${pts[i]} ${pts[i + 1]}`
+  return d + 'Z'
 }
 
 export function lineToPathData(n: LineNode): string {

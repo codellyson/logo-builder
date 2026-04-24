@@ -14,6 +14,15 @@ function getNodeLocalBbox(n: CanvasNode): Bbox {
   if (n.type === 'rect') return { x: 0, y: 0, width: n.width, height: n.height }
   if (n.type === 'ellipse')
     return { x: -n.radiusX, y: -n.radiusY, width: n.radiusX * 2, height: n.radiusY * 2 }
+  if (n.type === 'polygon')
+    return { x: -n.radius, y: -n.radius, width: n.radius * 2, height: n.radius * 2 }
+  if (n.type === 'star')
+    return {
+      x: -n.outerRadius,
+      y: -n.outerRadius,
+      width: n.outerRadius * 2,
+      height: n.outerRadius * 2,
+    }
   if (n.type === 'text') return { x: 0, y: 0, width: n.width, height: n.fontSize * 1.25 }
   if (n.type === 'icon') return { x: 0, y: 0, width: n.width, height: n.height }
   if (n.type === 'path') return { x: 0, y: 0, width: n.width, height: n.height }

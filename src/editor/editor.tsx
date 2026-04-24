@@ -4,6 +4,7 @@ import { LayersPanel } from '@/editor/layers-panel'
 import { PropertiesPanel } from '@/editor/properties-panel'
 import { Toolbar } from '@/editor/toolbar'
 import { CompositionToolbar } from '@/editor/composition-toolbar'
+import { AlignToolbar } from '@/editor/align-toolbar'
 import { useKeyboardShortcuts } from '@/editor/keyboard'
 import { EditorCanvas } from '@/canvas/stage'
 import { PalettePanel } from '@/colors/palette-panel'
@@ -49,8 +50,9 @@ export function Editor() {
           <div className="pointer-events-none absolute left-3 top-3">
             <Toolbar />
           </div>
-          <div className="pointer-events-none absolute left-1/2 top-3 -translate-x-1/2">
+          <div className="pointer-events-none absolute left-1/2 top-3 flex -translate-x-1/2 gap-2">
             <CompositionToolbar />
+            <AlignToolbar />
           </div>
           <div className="pointer-events-none absolute bottom-3 right-3">
             <ZoomControls />

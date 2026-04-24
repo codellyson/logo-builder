@@ -6,6 +6,9 @@ import { cn } from '@/lib/cn'
 const TOOLS: Array<{ type: PrimitiveType; icon: string; label: string }> = [
   { type: 'rect', icon: 'lucide:square', label: 'Rectangle' },
   { type: 'ellipse', icon: 'lucide:circle', label: 'Ellipse' },
+  { type: 'triangle', icon: 'lucide:triangle', label: 'Triangle' },
+  { type: 'polygon', icon: 'lucide:pentagon', label: 'Polygon' },
+  { type: 'star', icon: 'lucide:star', label: 'Star' },
   { type: 'line', icon: 'lucide:minus', label: 'Line' },
   { type: 'text', icon: 'lucide:type', label: 'Text' },
   { type: 'icon', icon: 'lucide:shapes', label: 'Icon' },

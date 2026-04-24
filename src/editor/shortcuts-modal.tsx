@@ -49,6 +49,15 @@ const GROUPS: { title: string; rows: [string, string][] }[] = [
       ['Double-click boolean', 'Enter / exit edit mode'],
     ],
   },
+  {
+    title: 'Align & Distribute',
+    rows: [
+      ['Alt + L / C / R', 'Align left / center-H / right'],
+      ['Alt + T / M / B', 'Align top / middle-V / bottom'],
+      ['Alt + H / V', 'Distribute horizontal / vertical'],
+      ['+ Shift', 'Align to artboard'],
+    ],
+  },
 ]
 
 export function ShortcutsModal({ onClose }: Props) {

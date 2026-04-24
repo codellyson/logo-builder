@@ -1,7 +1,12 @@
 import paper from 'paper'
 import type { CanvasNode, LineNode, PathNode, StrokeCap, StrokeJoin } from '@/canvas/types'
 import { ensureInit } from '@/composition/paper-bridge'
-import { rectToPathData, ellipseToPathData } from '@/composition/to-path'
+import {
+  rectToPathData,
+  ellipseToPathData,
+  polygonToPathData,
+  starToPathData,
+} from '@/composition/to-path'
 import { textToOutlines } from '@/composition/text-to-outlines'
 import { fetchIconSvg } from '@/icons/icon-svg'
 import { expandStroke, type ExpandStrokeOptions } from '@/composition/stroke-outline'
@@ -88,6 +93,17 @@ async function toLocalPath(
     // ellipseToPathData produces a path centered at (0, 0); EllipseNode.x/y is the
     // center too, so the outer translate(node.x, node.y) places it correctly.
     const fill = new paper.CompoundPath({ pathData: ellipseToPathData(node), insert: false })
+    return withStrokeFromFill(node, fill)
+  }
+
+  if (node.type === 'polygon') {
+    // Centered at (0, 0) in local frame; outer translate places it at (node.x, node.y).
+    const fill = new paper.CompoundPath({ pathData: polygonToPathData(node), insert: false })
+    return withStrokeFromFill(node, fill)
+  }
+
+  if (node.type === 'star') {
+    const fill = new paper.CompoundPath({ pathData: starToPathData(node), insert: false })
     return withStrokeFromFill(node, fill)
   }
 

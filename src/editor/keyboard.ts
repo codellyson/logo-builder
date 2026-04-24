@@ -94,24 +94,58 @@ export function useKeyboardShortcuts(extras?: Extras) {
         }
         return
       }
-      // Boolean ops: ⌘⌥{U,S,I,X} create; ⌘⇧E flatten
+      // Boolean ops: ⌘⌥{U,S,I,X} create; ⌘⇧E flatten.
+      // Uses e.code (physical key) because Alt on macOS rewrites e.key to a
+      // dead-key character (Alt+U → "¨", Alt+I → "ˆ", etc.).
       if (mod && e.altKey) {
-        const k = e.key.toLowerCase()
         const op =
-          k === 'u' ? 'unite' : k === 's' ? 'subtract' : k === 'i' ? 'intersect' : k === 'x' ? 'exclude' : null
+          e.code === 'KeyU'
+            ? 'unite'
+            : e.code === 'KeyS'
+              ? 'subtract'
+              : e.code === 'KeyI'
+                ? 'intersect'
+                : e.code === 'KeyX'
+                  ? 'exclude'
+                  : null
         if (op && sel.length >= 2) {
           e.preventDefault()
           store.createBoolean(sel, op)
           return
         }
       }
-      if (mod && e.shiftKey && (e.key === 'e' || e.key === 'E')) {
+      if (mod && e.shiftKey && e.code === 'KeyE') {
         e.preventDefault()
         for (const id of sel) {
           const n = store.nodes.find((x) => x.id === id)
           if (n && n.type === 'boolean') store.flattenBoolean(id)
         }
         return
+      }
+      // Alignment: ⌥{L,C,R,T,M,B} align; ⌥{H,V} distribute. +Shift = align-to-artboard.
+      // Alt-primary because ⌘⇧<letter> clashes with browser shortcuts
+      // (⌘⇧T = reopen tab, ⌘⇧R = hard reload, ⌘⇧C = Inspect, etc.) which
+      // browsers don't allow pages to preventDefault.
+      if (e.altKey && !mod && sel.length > 0) {
+        const alignEdge: Record<string, 'left' | 'hcenter' | 'right' | 'top' | 'vcenter' | 'bottom'> = {
+          KeyL: 'left',
+          KeyC: 'hcenter',
+          KeyR: 'right',
+          KeyT: 'top',
+          KeyM: 'vcenter',
+          KeyB: 'bottom',
+        }
+        const edge = alignEdge[e.code]
+        if (edge) {
+          e.preventDefault()
+          store.alignSelection(edge, e.shiftKey || sel.length < 2)
+          return
+        }
+        if (e.code === 'KeyH' || e.code === 'KeyV') {
+          e.preventDefault()
+          store.distributeSelection(e.code === 'KeyH' ? 'h' : 'v')
+          return
+        }
       }
     }
     window.addEventListener('keydown', handler)
