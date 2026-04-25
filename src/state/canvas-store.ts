@@ -4,10 +4,36 @@ import { useStore } from 'zustand'
 import type { BooleanCache, BooleanNode, BooleanOp, CanvasNode, GroupNode, PathNode, Viewport } from '@/canvas/types'
 import { newId } from '@/lib/id'
 import { DEFAULT_PALETTE, generatePalette, type Palette } from '@/colors/palette'
+import paper from 'paper'
 import { getNodeBbox, getSelectionBbox } from '@/composition/bbox'
+import { ensureInit as ensureInitForPen } from '@/composition/paper-bridge'
 
 export type AlignEdge = 'left' | 'hcenter' | 'right' | 'top' | 'vcenter' | 'bottom'
 export type DistributeAxis = 'h' | 'v'
+
+export type ToolMode = 'select' | 'pen' | 'edit-path'
+
+export type PathEditState = {
+  nodeId: string
+  selectedSegmentIndices: number[]
+} | null
+
+// Handle deltas are relative to the segment's anchor point.
+export type PenDraftSegment = {
+  x: number
+  y: number
+  handleIn?: { dx: number; dy: number }
+  handleOut?: { dx: number; dy: number }
+}
+
+export type PenDraftState = {
+  segments: PenDraftSegment[]
+  // In-progress anchor while the user is holding mousedown. Mouse movement updates
+  // its handleOut (and mirrors to handleIn unless Alt is held). On mouseup, the
+  // pending segment is pushed into `segments`.
+  pending: PenDraftSegment | null
+  cursor: { x: number; y: number } | null
+} | null
 
 function invalidateBooleanAncestors(
   nodes: CanvasNode[],
@@ -44,6 +70,9 @@ type CanvasState = {
   artboardBackground: string
   fitRequestId: number
   editingBooleanId: string | null
+  toolMode: ToolMode
+  penDraft: PenDraftState
+  pathEditState: PathEditState
 }
 
 type CanvasActions = {
@@ -68,6 +97,17 @@ type CanvasActions = {
   flattenBoolean: (id: string) => void
   ungroupBoolean: (id: string) => void
   setEditingBooleanId: (id: string | null) => void
+  setToolMode: (mode: ToolMode) => void
+  penBeginAnchor: (x: number, y: number) => void
+  penUpdatePendingHandle: (dx: number, dy: number, breakSymmetry: boolean) => void
+  penFinalizePending: () => void
+  penUndoLastAnchor: () => void
+  penSetCursor: (x: number, y: number) => void
+  penCommit: (closed: boolean) => string | null
+  penCancel: () => void
+  enterPathEdit: (nodeId: string) => void
+  setPathEditSelectedIndices: (indices: number[]) => void
+  exitPathEdit: () => void
   alignSelection: (edge: AlignEdge, toArtboard?: boolean) => void
   distributeSelection: (axis: DistributeAxis) => void
   selectAll: () => void
@@ -93,6 +133,9 @@ const initialState: CanvasState = {
   artboardBackground: '#ffffff',
   fitRequestId: 0,
   editingBooleanId: null,
+  toolMode: 'select',
+  penDraft: null,
+  pathEditState: null,
 }
 
 export const useCanvasStore = create<CanvasState & CanvasActions>()(
@@ -131,11 +174,14 @@ export const useCanvasStore = create<CanvasState & CanvasActions>()(
         }
         set((s) => {
           const filtered = s.nodes.filter((n) => !toRemove.has(n.id))
+          const clearPathEdit = s.pathEditState && toRemove.has(s.pathEditState.nodeId)
           return {
             nodes: invalidateBooleanAncestors(filtered, parentIdsOfRemoved, { includeSelf: true }),
             selectedIds: s.selectedIds.filter((i) => !toRemove.has(i)),
             editingBooleanId:
               s.editingBooleanId && toRemove.has(s.editingBooleanId) ? null : s.editingBooleanId,
+            pathEditState: clearPathEdit ? null : s.pathEditState,
+            toolMode: clearPathEdit ? 'select' : s.toolMode,
           }
         })
       },
@@ -436,6 +482,151 @@ export const useCanvasStore = create<CanvasState & CanvasActions>()(
           // keep the Transformer attached to it.
           selectedIds: id ? [] : s.selectedIds,
         })),
+
+      setToolMode: (mode) =>
+        set((s) => ({
+          toolMode: mode,
+          penDraft:
+            mode === 'pen'
+              ? (s.penDraft ?? { segments: [], pending: null, cursor: null })
+              : null,
+          // Path edit mode has its own entry action; setToolMode exits it.
+          pathEditState: mode === 'edit-path' ? s.pathEditState : null,
+          selectedIds: mode === 'pen' ? [] : s.selectedIds,
+          editingBooleanId: mode === 'pen' ? null : s.editingBooleanId,
+        })),
+
+      penBeginAnchor: (x, y) =>
+        set((s) => {
+          if (s.toolMode !== 'pen') return s
+          const draft = s.penDraft ?? { segments: [], pending: null, cursor: null }
+          return { penDraft: { ...draft, pending: { x, y } } }
+        }),
+
+      penUpdatePendingHandle: (dx, dy, breakSymmetry) =>
+        set((s) => {
+          if (s.toolMode !== 'pen' || !s.penDraft || !s.penDraft.pending) return s
+          const handleOut = { dx, dy }
+          const pending: PenDraftSegment = breakSymmetry
+            ? { ...s.penDraft.pending, handleOut }
+            : { ...s.penDraft.pending, handleOut, handleIn: { dx: -dx, dy: -dy } }
+          return { penDraft: { ...s.penDraft, pending } }
+        }),
+
+      penFinalizePending: () =>
+        set((s) => {
+          if (s.toolMode !== 'pen' || !s.penDraft || !s.penDraft.pending) return s
+          return {
+            penDraft: {
+              ...s.penDraft,
+              segments: [...s.penDraft.segments, s.penDraft.pending],
+              pending: null,
+            },
+          }
+        }),
+
+      penUndoLastAnchor: () =>
+        set((s) => {
+          if (s.toolMode !== 'pen' || !s.penDraft) return s
+          // Pending takes priority — clear it before popping a finalized one.
+          if (s.penDraft.pending) {
+            return { penDraft: { ...s.penDraft, pending: null } }
+          }
+          if (s.penDraft.segments.length === 0) return s
+          return {
+            penDraft: { ...s.penDraft, segments: s.penDraft.segments.slice(0, -1) },
+          }
+        }),
+
+      penSetCursor: (x, y) =>
+        set((s) => {
+          if (s.toolMode !== 'pen' || !s.penDraft) return s
+          return { penDraft: { ...s.penDraft, cursor: { x, y } } }
+        }),
+
+      penCommit: (closed) => {
+        const state = get()
+        if (state.toolMode !== 'pen' || !state.penDraft) return null
+        const segs = state.penDraft.segments
+        if (segs.length < 2) return null
+
+        // Build a paper.Path with handles so pathData contains proper cubic Bezier
+        // commands, then normalize to (0, 0) origin.
+        ensureInitForPen()
+        const paperPath = new paper.Path({ insert: false, closed })
+        for (const seg of segs) {
+          paperPath.add(
+            new paper.Segment(
+              new paper.Point(seg.x, seg.y),
+              seg.handleIn ? new paper.Point(seg.handleIn.dx, seg.handleIn.dy) : undefined,
+              seg.handleOut ? new paper.Point(seg.handleOut.dx, seg.handleOut.dy) : undefined,
+            ),
+          )
+        }
+        const bounds = paperPath.bounds
+        paperPath.translate(new paper.Point(-bounds.x, -bounds.y))
+        const data = paperPath.pathData
+        const width = Math.max(1, bounds.width)
+        const height = Math.max(1, bounds.height)
+        paperPath.remove()
+
+        const node: PathNode = {
+          id: newId(),
+          type: 'path',
+          name: 'Path',
+          locked: false,
+          hidden: false,
+          x: bounds.x,
+          y: bounds.y,
+          rotation: 0,
+          opacity: 1,
+          data,
+          fill: closed ? '#f4f4f5' : null,
+          stroke: closed ? null : '#0a0a0a',
+          strokeWidth: closed ? 0 : 2,
+          width,
+          height,
+        }
+
+        set((s) => ({
+          nodes: [...s.nodes, node],
+          selectedIds: [node.id],
+          penDraft: null,
+          toolMode: 'select',
+        }))
+        return node.id
+      },
+
+      penCancel: () =>
+        set({
+          penDraft: null,
+          toolMode: 'select',
+        }),
+
+      enterPathEdit: (nodeId) => {
+        const state = get()
+        const n = state.nodes.find((x) => x.id === nodeId)
+        if (!n || n.type !== 'path') return
+        set({
+          toolMode: 'edit-path',
+          pathEditState: { nodeId, selectedSegmentIndices: [] },
+          selectedIds: [nodeId],
+          penDraft: null,
+          editingBooleanId: null,
+        })
+      },
+
+      setPathEditSelectedIndices: (indices) =>
+        set((s) => {
+          if (!s.pathEditState) return s
+          return { pathEditState: { ...s.pathEditState, selectedSegmentIndices: indices } }
+        }),
+
+      exitPathEdit: () =>
+        set({
+          toolMode: 'select',
+          pathEditState: null,
+        }),
 
       alignSelection: (edge, toArtboard = false) => {
         const state = get()

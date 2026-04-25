@@ -7,12 +7,39 @@ import { CanvasTransformer } from '@/canvas/transformer'
 import { Marquee, intersects } from '@/canvas/marquee'
 import { TextEditor } from '@/canvas/text-editor'
 import { Guides } from '@/canvas/guides'
+import { PenDraftPreview } from '@/canvas/pen-draft-preview'
+import { PathEditOverlay } from '@/canvas/path-edit-overlay'
 import { computeSnap, type Bbox, type SnapGuide } from '@/composition/alignment'
 import { FONTS_LOADED_EVENT } from '@/fonts/preload'
 import type { CanvasNode, TextNode } from '@/canvas/types'
 
 const MIN_SCALE = 0.1
 const MAX_SCALE = 8
+
+// Last placed-or-pending anchor in a pen draft, for Shift-constrain reference.
+function lastAnchor(
+  draft: { segments: { x: number; y: number }[]; pending: { x: number; y: number } | null },
+): { x: number; y: number } | null {
+  if (draft.pending) return draft.pending
+  if (draft.segments.length > 0) return draft.segments[draft.segments.length - 1]
+  return null
+}
+
+// Snaps `pos` so the vector from `anchor` to `pos` is along the nearest 0° /
+// 45° / 90° direction. If anchor is null, returns pos unchanged.
+function constrainToAxis(
+  pos: { x: number; y: number },
+  anchor: { x: number; y: number } | null,
+): { x: number; y: number } {
+  if (!anchor) return pos
+  const dx = pos.x - anchor.x
+  const dy = pos.y - anchor.y
+  const angle = Math.atan2(dy, dx)
+  const step = Math.PI / 4
+  const snapped = Math.round(angle / step) * step
+  const mag = Math.hypot(dx, dy)
+  return { x: anchor.x + Math.cos(snapped) * mag, y: anchor.y + Math.sin(snapped) * mag }
+}
 
 export function EditorCanvas() {
   const containerRef = useRef<HTMLDivElement>(null)
@@ -38,11 +65,21 @@ export function EditorCanvas() {
   const artboardBackground = useCanvasStore((s) => s.artboardBackground)
   const fitRequestId = useCanvasStore((s) => s.fitRequestId)
   const editingBooleanId = useCanvasStore((s) => s.editingBooleanId)
+  const toolMode = useCanvasStore((s) => s.toolMode)
+  const penDraft = useCanvasStore((s) => s.penDraft)
+  const pathEditState = useCanvasStore((s) => s.pathEditState)
   const setViewport = useCanvasStore((s) => s.setViewport)
   const select = useCanvasStore((s) => s.select)
   const toggleSelect = useCanvasStore((s) => s.toggleSelect)
   const clearSelection = useCanvasStore((s) => s.clearSelection)
   const setEditingBooleanId = useCanvasStore((s) => s.setEditingBooleanId)
+  const penBeginAnchor = useCanvasStore((s) => s.penBeginAnchor)
+  const penUpdatePendingHandle = useCanvasStore((s) => s.penUpdatePendingHandle)
+  const penFinalizePending = useCanvasStore((s) => s.penFinalizePending)
+  const penSetCursor = useCanvasStore((s) => s.penSetCursor)
+  const penCommit = useCanvasStore((s) => s.penCommit)
+  const exitPathEdit = useCanvasStore((s) => s.exitPathEdit)
+  const penDragState = useRef<{ anchorX: number; anchorY: number; closedOnDown: boolean } | null>(null)
 
   useEffect(() => {
     const el = containerRef.current
@@ -141,11 +178,56 @@ export function EditorCanvas() {
     }
   }
 
+  const snapPointForPen = (pos: { x: number; y: number }) => {
+    const stage = stageRef.current
+    if (!stage) return { x: pos.x, y: pos.y, guides: [] as SnapGuide[] }
+    const layer = stage.getLayers()[0]
+    if (!layer) return { x: pos.x, y: pos.y, guides: [] as SnapGuide[] }
+    const others: Bbox[] = []
+    for (const n of nodes) {
+      if (n.hidden || n.locked) continue
+      if (n.parentId) continue
+      const kn = stage.findOne(`#${n.id}`)
+      if (!kn) continue
+      others.push(kn.getClientRect({ relativeTo: layer, skipTransform: false }))
+    }
+    const artboard: Bbox = { x: 0, y: 0, width: stageWidth, height: stageHeight }
+    const threshold = 6 / viewport.scale
+    const dragged: Bbox = { x: pos.x, y: pos.y, width: 0, height: 0 }
+    const { dx, dy, guides } = computeSnap(dragged, others, artboard, threshold)
+    return { x: pos.x + dx, y: pos.y + dy, guides }
+  }
+
   const handleStageMouseDown = (e: Konva.KonvaEventObject<MouseEvent>) => {
     const stage = stageRef.current
     if (!stage) return
+
+    // Pen mode: intercept clicks. Mousedown starts a pending anchor; drag shapes
+    // its handles; mouseup finalizes. Clicking the first anchor closes the path.
+    if (toolMode === 'pen') {
+      const raw = stage.getRelativePointerPosition()
+      if (!raw) return
+      if (e.target.name() === 'pen-first-anchor' && penDraft && penDraft.segments.length >= 2) {
+        penDragState.current = { anchorX: raw.x, anchorY: raw.y, closedOnDown: true }
+        setGuides([])
+        penCommit(true)
+        return
+      }
+      const constrained = e.evt.shiftKey && penDraft ? constrainToAxis(raw, lastAnchor(penDraft)) : raw
+      const { x, y } = snapPointForPen(constrained)
+      penBeginAnchor(x, y)
+      penDragState.current = { anchorX: x, anchorY: y, closedOnDown: false }
+      setGuides([])
+      return
+    }
+
     const clickedOnStage = e.target === stage || e.target.name() === 'artboard-bg'
     if (!clickedOnStage) return
+    // Empty-stage click in path edit mode exits the mode entirely.
+    if (toolMode === 'edit-path') {
+      exitPathEdit()
+      return
+    }
     if (!e.evt.shiftKey && !e.evt.metaKey && !e.evt.ctrlKey) clearSelection()
     if (editingBooleanId) setEditingBooleanId(null)
     const pos = stage.getRelativePointerPosition()
@@ -153,10 +235,34 @@ export function EditorCanvas() {
     setMarquee({ startX: pos.x, startY: pos.y, x: pos.x, y: pos.y, width: 0, height: 0 })
   }
 
-  const handleStageMouseMove = () => {
-    if (!marquee) return
+  const handleStageMouseMove = (e: Konva.KonvaEventObject<MouseEvent>) => {
     const stage = stageRef.current
     if (!stage) return
+
+    if (toolMode === 'pen' && penDraft) {
+      const pos = stage.getRelativePointerPosition()
+      if (!pos) return
+      const drag = penDragState.current
+      if (drag && !drag.closedOnDown && penDraft.pending) {
+        // Mid-drag (extruding a handle): do not snap, just feed raw delta.
+        penSetCursor(pos.x, pos.y)
+        setGuides([])
+        const dx = pos.x - drag.anchorX
+        const dy = pos.y - drag.anchorY
+        if (Math.hypot(dx, dy) >= 3) {
+          penUpdatePendingHandle(dx, dy, e.evt.altKey)
+        }
+      } else {
+        // Shift-constrain to 0° / 45° / 90° from the last placed anchor.
+        const constrained = e.evt.shiftKey && penDraft ? constrainToAxis(pos, lastAnchor(penDraft)) : pos
+        const snapped = snapPointForPen(constrained)
+        penSetCursor(snapped.x, snapped.y)
+        setGuides(snapped.guides)
+      }
+      return
+    }
+
+    if (!marquee) return
     const pos = stage.getRelativePointerPosition()
     if (!pos) return
     const x = Math.min(marquee.startX, pos.x)
@@ -205,6 +311,14 @@ export function EditorCanvas() {
   }
 
   const handleStageMouseUp = () => {
+    if (toolMode === 'pen') {
+      const drag = penDragState.current
+      penDragState.current = null
+      if (drag && !drag.closedOnDown) penFinalizePending()
+      setGuides([])
+      return
+    }
+
     if (!marquee) return
     if (marquee.width > 2 && marquee.height > 2) {
       const stage = stageRef.current
@@ -237,6 +351,9 @@ export function EditorCanvas() {
 
   const renderTree = (node: CanvasNode) => {
     if (node.hidden) return null
+    // The path being edited is rendered by PathEditOverlay instead so edits
+    // appear live without a stale base path peeking through.
+    if (pathEditState && pathEditState.nodeId === node.id) return null
     const childNodes = childrenOf.get(node.id)
     if (node.type === 'group') {
       return (
@@ -318,6 +435,15 @@ export function EditorCanvas() {
             <CanvasTransformer selectedIds={selectedIds} />
             <Marquee rect={marquee} />
             <Guides guides={guides} scale={viewport.scale} />
+            {toolMode === 'pen' && penDraft && (
+              <PenDraftPreview draft={penDraft} scale={viewport.scale} />
+            )}
+            {toolMode === 'edit-path' && pathEditState && (() => {
+              const n = nodes.find((x) => x.id === pathEditState.nodeId)
+              return n && n.type === 'path' ? (
+                <PathEditOverlay node={n} scale={viewport.scale} />
+              ) : null
+            })()}
           </Layer>
         </Stage>
       )}

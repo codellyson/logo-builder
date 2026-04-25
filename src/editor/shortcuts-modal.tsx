@@ -37,6 +37,25 @@ const GROUPS: { title: string; rows: [string, string][] }[] = [
     ],
   },
   {
+    title: 'Tools',
+    rows: [
+      ['P', 'Pen tool'],
+      ['V', 'Return to select'],
+      ['Enter', 'Commit pen path as open'],
+      ['Click first anchor', 'Commit pen path as closed'],
+      ['Backspace (drafting)', 'Pop last anchor'],
+      ['Shift (placing)', 'Constrain to 0° / 45° / 90°'],
+      ['Alt (drag handle)', 'Break handle symmetry'],
+      ['A', 'Edit path (on a selected path)'],
+      ['Double-click path', 'Edit path'],
+      ['Double-click on edge', 'Insert anchor'],
+      ['Cmd + A (edit mode)', 'Select all anchors'],
+      ['Arrows (edit mode)', 'Nudge anchors 1px (Shift = 10px)'],
+      ['Delete / Backspace', 'Remove selected anchor(s)'],
+      ['1 / 2 / 3', 'Anchor style: corner / smooth / cusp'],
+    ],
+  },
+  {
     title: 'Composition',
     rows: [
       ['Cmd + G', 'Group'],

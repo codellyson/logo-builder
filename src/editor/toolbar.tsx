@@ -18,8 +18,11 @@ export function Toolbar() {
   const addNode = useCanvasStore((s) => s.addNode)
   const stageWidth = useCanvasStore((s) => s.stageWidth)
   const stageHeight = useCanvasStore((s) => s.stageHeight)
+  const toolMode = useCanvasStore((s) => s.toolMode)
+  const setToolMode = useCanvasStore((s) => s.setToolMode)
 
   const onAdd = (type: PrimitiveType) => {
+    if (toolMode === 'pen') setToolMode('select')
     const existing = useCanvasStore.getState().nodes.length
     const step = 24
     const offset = (existing % 6) * step - step * 2.5
@@ -28,6 +31,20 @@ export function Toolbar() {
 
   return (
     <div className="pointer-events-auto flex flex-col gap-1 rounded-md border border-neutral-800 bg-neutral-950/95 p-1 shadow-lg backdrop-blur">
+      <button
+        type="button"
+        title={toolMode === 'pen' ? 'Exit Pen (V)' : 'Pen (P)'}
+        onClick={() => setToolMode(toolMode === 'pen' ? 'select' : 'pen')}
+        className={cn(
+          'flex h-8 w-8 items-center justify-center rounded',
+          toolMode === 'pen'
+            ? 'bg-indigo-500/20 text-indigo-300'
+            : 'text-neutral-400 hover:bg-neutral-800 hover:text-neutral-100',
+        )}
+      >
+        <Icon icon="lucide:pen-tool" width={16} height={16} />
+      </button>
+      <div className="my-0.5 h-px bg-neutral-800" />
       {TOOLS.map((t) => (
         <button
           key={t.type}

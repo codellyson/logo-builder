@@ -1,4 +1,10 @@
 import { useCanvasStore } from '@/state/canvas-store'
+import {
+  getSegmentStyle,
+  parseSegments,
+  setSegmentStyles,
+  type SegmentStyle,
+} from '@/composition/path-edit-ops'
 import type {
   BlendMode,
   BooleanNode,
@@ -34,7 +40,30 @@ import { FieldRow, NumberField, Segmented, Slider01, TextField, TextAreaField } 
 export function PropertiesPanel() {
   const nodes = useCanvasStore((s) => s.nodes)
   const selectedIds = useCanvasStore((s) => s.selectedIds)
+  const toolMode = useCanvasStore((s) => s.toolMode)
+  const pathEditState = useCanvasStore((s) => s.pathEditState)
   const selected = nodes.filter((n) => selectedIds.includes(n.id))
+
+  // In edit-path mode with one or more anchors selected, show anchor properties.
+  if (toolMode === 'edit-path' && pathEditState && pathEditState.selectedSegmentIndices.length > 0) {
+    const node = nodes.find((n) => n.id === pathEditState.nodeId)
+    if (node && node.type === 'path') {
+      return (
+        <div className="flex h-full flex-col overflow-y-auto">
+          <div className="px-3 pt-3 text-xs font-medium uppercase tracking-wider text-neutral-500">
+            Anchor
+          </div>
+          <div className="p-3">
+            <AnchorFields
+              nodeId={node.id}
+              pathData={node.data}
+              indices={pathEditState.selectedSegmentIndices}
+            />
+          </div>
+        </div>
+      )
+    }
+  }
 
   return (
     <div className="flex h-full flex-col overflow-y-auto">
@@ -223,6 +252,52 @@ function PolygonFields({ node }: { node: PolygonNode }) {
           </FieldRow>
         </>
       )}
+    </div>
+  )
+}
+
+function AnchorFields({
+  nodeId,
+  pathData,
+  indices,
+}: {
+  nodeId: string
+  pathData: string
+  indices: number[]
+}) {
+  const update = useCanvasStore((s) => s.updateNode)
+  const segs = parseSegments(pathData)
+  const styles = indices.map((i) => (segs[i] ? getSegmentStyle(segs[i]) : null)).filter((s): s is SegmentStyle => !!s)
+  const uniform = styles.length > 0 && styles.every((s) => s === styles[0])
+  const currentStyle: SegmentStyle | null = uniform ? styles[0] : null
+
+  const applyStyle = (style: SegmentStyle) => {
+    const next = setSegmentStyles(pathData, indices, style)
+    if (next) update(nodeId, { data: next })
+  }
+
+  return (
+    <div className="space-y-2">
+      <div className="text-[10px] text-neutral-500">
+        {indices.length} anchor{indices.length === 1 ? '' : 's'} selected
+      </div>
+      <FieldRow label="Style">
+        <Segmented<SegmentStyle>
+          value={currentStyle ?? 'corner'}
+          options={[
+            { value: 'corner', label: 'Corner' },
+            { value: 'smooth', label: 'Smooth' },
+            { value: 'cusp', label: 'Cusp' },
+          ]}
+          onChange={applyStyle}
+        />
+      </FieldRow>
+      {!uniform && (
+        <div className="text-[10px] text-neutral-600">Selected anchors have mixed styles.</div>
+      )}
+      <div className="pt-2 text-[10px] text-neutral-600">
+        Shortcuts: 1 Corner · 2 Smooth · 3 Cusp
+      </div>
     </div>
   )
 }

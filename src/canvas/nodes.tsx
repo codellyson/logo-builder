@@ -41,8 +41,16 @@ export function NodeRenderer({
     opacity: node.opacity,
     visible: !editing,
     globalCompositeOperation: node.blendMode ?? 'source-over',
-    draggable: !node.locked,
+    draggable:
+      !node.locked &&
+      useCanvasStore.getState().toolMode !== 'pen' &&
+      useCanvasStore.getState().toolMode !== 'edit-path',
     onMouseDown: (e: Konva.KonvaEventObject<MouseEvent>) => {
+      const mode = useCanvasStore.getState().toolMode
+      // Pen mode: let the click bubble to the stage so it becomes an anchor.
+      // Edit-path mode: the overlay handles anchor clicks; node body clicks
+      // should also fall through so empty clicks inside the bbox don't select.
+      if (mode === 'pen' || mode === 'edit-path') return
       e.cancelBubble = true
       onSelect(node.id, e.evt.shiftKey || e.evt.metaKey || e.evt.ctrlKey)
     },
@@ -154,6 +162,8 @@ export function NodeRenderer({
         strokeWidth={node.stroke ? node.strokeWidth : 0}
         lineCap={node.strokeCap ?? 'butt'}
         lineJoin={node.strokeJoin ?? 'miter'}
+        onDblClick={() => useCanvasStore.getState().enterPathEdit(node.id)}
+        onDblTap={() => useCanvasStore.getState().enterPathEdit(node.id)}
       />
     )
   }

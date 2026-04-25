@@ -1,5 +1,12 @@
 import { useEffect } from 'react'
 import { useCanvasStore } from '@/state/canvas-store'
+import {
+  deleteSegments,
+  nudgeSegments,
+  parseSegments,
+  setSegmentStyles,
+  type SegmentStyle,
+} from '@/composition/path-edit-ops'
 
 type Extras = {
   onToggleHelp?: () => void
@@ -42,6 +49,15 @@ export function useKeyboardShortcuts(extras?: Extras) {
       }
       if (mod && (e.key === 'a' || e.key === 'A')) {
         e.preventDefault()
+        // In edit-path mode, ⌘A selects every anchor on the active path.
+        if (store.toolMode === 'edit-path' && store.pathEditState) {
+          const node = store.nodes.find((x) => x.id === store.pathEditState!.nodeId)
+          if (node && node.type === 'path') {
+            const segs = parseSegments(node.data)
+            store.setPathEditSelectedIndices(segs.map((_, i) => i))
+            return
+          }
+        }
         store.selectAll()
         return
       }
@@ -63,18 +79,130 @@ export function useKeyboardShortcuts(extras?: Extras) {
         return
       }
       if (e.key === 'Delete' || e.key === 'Backspace') {
+        // In pen draft, Backspace pops the last placed anchor (or clears the
+        // pending one). Lets users iteratively redraw without canceling.
+        if (store.toolMode === 'pen' && store.penDraft) {
+          e.preventDefault()
+          store.penUndoLastAnchor()
+          return
+        }
+        // In edit-path mode with anchor(s) selected, delete the anchors; leave
+        // node itself alone. A deletion that would drop below 2 segments is a
+        // no-op (avoid degenerate paths).
+        if (store.toolMode === 'edit-path' && store.pathEditState) {
+          const anchorIndices = store.pathEditState.selectedSegmentIndices
+          if (anchorIndices.length > 0) {
+            e.preventDefault()
+            const node = store.nodes.find((x) => x.id === store.pathEditState!.nodeId)
+            if (node && node.type === 'path') {
+              const nextData = deleteSegments(node.data, anchorIndices)
+              if (nextData) {
+                store.updateNode(node.id, { data: nextData })
+                store.setPathEditSelectedIndices([])
+              }
+            }
+            return
+          }
+        }
         if (sel.length === 0) return
         e.preventDefault()
         store.removeNodes(sel)
         return
       }
+      // Pen tool: P enters, V exits. Enter commits open, Escape cancels while drafting.
+      if (!mod && !e.altKey && !e.shiftKey && e.code === 'KeyP' && store.toolMode !== 'pen') {
+        e.preventDefault()
+        store.setToolMode('pen')
+        return
+      }
+      if (
+        !mod &&
+        !e.altKey &&
+        !e.shiftKey &&
+        e.code === 'KeyV' &&
+        (store.toolMode === 'pen' || store.toolMode === 'edit-path')
+      ) {
+        e.preventDefault()
+        if (store.toolMode === 'edit-path') store.exitPathEdit()
+        else store.setToolMode('select')
+        return
+      }
+      if (e.key === 'Enter' && store.toolMode === 'pen' && store.penDraft) {
+        e.preventDefault()
+        store.penCommit(false)
+        return
+      }
+      // 1/2/3: anchor style in edit-path mode (corner/smooth/cusp) for selected anchors.
+      if (
+        !mod &&
+        !e.altKey &&
+        store.toolMode === 'edit-path' &&
+        store.pathEditState &&
+        store.pathEditState.selectedSegmentIndices.length > 0 &&
+        (e.key === '1' || e.key === '2' || e.key === '3')
+      ) {
+        const style: SegmentStyle =
+          e.key === '1' ? 'corner' : e.key === '2' ? 'smooth' : 'cusp'
+        const node = store.nodes.find((x) => x.id === store.pathEditState!.nodeId)
+        if (node && node.type === 'path') {
+          e.preventDefault()
+          const nextData = setSegmentStyles(
+            node.data,
+            store.pathEditState.selectedSegmentIndices,
+            style,
+          )
+          if (nextData) store.updateNode(node.id, { data: nextData })
+          return
+        }
+      }
+      // A: enter path edit mode on a single selected PathNode.
+      if (
+        !mod &&
+        !e.altKey &&
+        !e.shiftKey &&
+        e.code === 'KeyA' &&
+        store.toolMode === 'select' &&
+        sel.length === 1
+      ) {
+        const n = store.nodes.find((x) => x.id === sel[0])
+        if (n && n.type === 'path') {
+          e.preventDefault()
+          store.enterPathEdit(n.id)
+          return
+        }
+      }
       if (e.key === 'Escape') {
         e.preventDefault()
-        if (store.editingBooleanId) store.setEditingBooleanId(null)
+        if (store.toolMode === 'pen') store.penCancel()
+        else if (store.toolMode === 'edit-path') store.exitPathEdit()
+        else if (store.editingBooleanId) store.setEditingBooleanId(null)
         else store.clearSelection()
         return
       }
-      if (e.key.startsWith('Arrow') && sel.length > 0) {
+      if (e.key.startsWith('Arrow')) {
+        // In edit-path mode, arrow keys nudge selected anchors in node-local frame.
+        if (
+          store.toolMode === 'edit-path' &&
+          store.pathEditState &&
+          store.pathEditState.selectedSegmentIndices.length > 0
+        ) {
+          const node = store.nodes.find((x) => x.id === store.pathEditState!.nodeId)
+          if (node && node.type === 'path') {
+            e.preventDefault()
+            const step = e.shiftKey ? 10 : 1
+            const dx = e.key === 'ArrowLeft' ? -step : e.key === 'ArrowRight' ? step : 0
+            const dy = e.key === 'ArrowUp' ? -step : e.key === 'ArrowDown' ? step : 0
+            const nextData = nudgeSegments(
+              node.data,
+              store.pathEditState.selectedSegmentIndices,
+              dx,
+              dy,
+            )
+            if (nextData) store.updateNode(node.id, { data: nextData })
+            return
+          }
+        }
+        if (sel.length === 0) return
         e.preventDefault()
         const step = e.shiftKey ? 10 : 1
         if (e.key === 'ArrowLeft') store.nudgeSelected(-step, 0)
