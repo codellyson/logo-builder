@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react'
 import type Konva from 'konva'
 import type { TextNode } from '@/canvas/types'
 import { useCanvasStore } from '@/state/canvas-store'
+import { fillSolidColor } from '@/composition/fills'
 
 type Props = {
   node: TextNode
@@ -57,7 +58,7 @@ export function TextEditor({ node, stage, onClose }: Props) {
         fontSize: node.fontSize * scale,
         fontWeight: node.fontStyle.includes('bold') ? 700 : 400,
         fontStyle: node.fontStyle.includes('italic') ? 'italic' : 'normal',
-        color: node.fill,
+        color: fillSolidColor(node.fill) ?? '#000000',
         letterSpacing: node.letterSpacing * scale,
         textAlign: node.align,
         lineHeight: 1,

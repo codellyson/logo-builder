@@ -1,7 +1,8 @@
 import { create } from 'zustand'
 import { temporal } from 'zundo'
 import { useStore } from 'zustand'
-import type { BooleanCache, BooleanNode, BooleanOp, CanvasNode, GroupNode, PathNode, Viewport } from '@/canvas/types'
+import type { BooleanCache, BooleanNode, BooleanOp, CanvasNode, Fill, GroupNode, PathNode, Viewport } from '@/canvas/types'
+import { solidFill } from '@/composition/fills'
 import { newId } from '@/lib/id'
 import { DEFAULT_PALETTE, generatePalette, type Palette } from '@/colors/palette'
 import paper from 'paper'
@@ -357,7 +358,7 @@ export const useCanvasStore = create<CanvasState & CanvasActions>()(
         if (parentIds.size > 1) return null
         const sharedParent = targets[0].parentId
 
-        let fill: string | null = '#000000'
+        let fill: Fill | null = solidFill('#000000')
         let stroke: string | null = null
         let strokeWidth = 0
         for (const t of targets) {
@@ -581,7 +582,7 @@ export const useCanvasStore = create<CanvasState & CanvasActions>()(
           rotation: 0,
           opacity: 1,
           data,
-          fill: closed ? '#f4f4f5' : null,
+          fill: closed ? solidFill('#f4f4f5') : null,
           stroke: closed ? null : '#0a0a0a',
           strokeWidth: closed ? 0 : 2,
           width,

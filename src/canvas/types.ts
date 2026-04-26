@@ -5,6 +5,30 @@ export type BooleanOp = 'unite' | 'subtract' | 'intersect' | 'exclude'
 export type StrokeCap = 'butt' | 'round'
 export type StrokeJoin = 'miter' | 'round' | 'bevel'
 
+// Polymorphic fill: solid color or gradient. Gradient handles live in
+// node-local coords (not bbox-relative) so they extend past the shape edge for
+// clean ramps and rotation works by transforming the parent group above them.
+export type ColorStop = { offset: number; color: string }
+
+export type SolidFill = { type: 'solid'; color: string }
+
+export type LinearFill = {
+  type: 'linear'
+  stops: ColorStop[]
+  start: { x: number; y: number }
+  end: { x: number; y: number }
+}
+
+export type RadialFill = {
+  type: 'radial'
+  stops: ColorStop[]
+  center: { x: number; y: number }
+  radius: number
+  focal?: { x: number; y: number }
+}
+
+export type Fill = SolidFill | LinearFill | RadialFill
+
 export type BooleanCache = {
   // Path data in the boolean's local frame. Rendered at (node.x, node.y) with
   // (node.rotation) — rotation pivots around the boolean's origin.
@@ -50,7 +74,7 @@ export type RectNode = NodeBase & {
   type: 'rect'
   width: number
   height: number
-  fill: string
+  fill: Fill
   stroke: string | null
   strokeWidth: number
   strokeJoin?: StrokeJoin
@@ -61,7 +85,7 @@ export type EllipseNode = NodeBase & {
   type: 'ellipse'
   radiusX: number
   radiusY: number
-  fill: string
+  fill: Fill
   stroke: string | null
   strokeWidth: number
 }
@@ -81,7 +105,7 @@ export type TextNode = NodeBase & {
   fontFamily: string
   fontSize: number
   fontStyle: 'normal' | 'bold' | 'italic' | 'bold italic'
-  fill: string
+  fill: Fill
   align: 'left' | 'center' | 'right'
   letterSpacing: number
   width: number
@@ -90,7 +114,7 @@ export type TextNode = NodeBase & {
 export type IconNode = NodeBase & {
   type: 'icon'
   iconName: string
-  fill: string
+  fill: Fill
   width: number
   height: number
 }
@@ -98,7 +122,7 @@ export type IconNode = NodeBase & {
 export type PathNode = NodeBase & {
   type: 'path'
   data: string
-  fill: string | null
+  fill: Fill | null
   stroke: string | null
   strokeWidth: number
   strokeCap?: StrokeCap
@@ -111,7 +135,7 @@ export type PolygonNode = NodeBase & {
   type: 'polygon'
   sides: number   // >= 3
   radius: number  // circumscribed radius
-  fill: string
+  fill: Fill
   stroke: string | null
   strokeWidth: number
   strokeJoin?: StrokeJoin
@@ -122,7 +146,7 @@ export type StarNode = NodeBase & {
   points: number         // >= 3
   outerRadius: number
   innerRadius: number    // 0 < inner < outer
-  fill: string
+  fill: Fill
   stroke: string | null
   strokeWidth: number
   strokeJoin?: StrokeJoin
@@ -136,7 +160,7 @@ export type GroupNode = NodeBase & {
 export type BooleanNode = NodeBase & {
   type: 'boolean'
   op: BooleanOp
-  fill: string | null
+  fill: Fill | null
   stroke: string | null
   strokeWidth: number
   strokeJoin?: StrokeJoin

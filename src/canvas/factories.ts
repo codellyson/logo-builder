@@ -8,6 +8,7 @@ import type {
   StarNode,
   TextNode,
 } from '@/canvas/types'
+import { solidFill } from '@/composition/fills'
 import { newId } from '@/lib/id'
 
 const base = (name: string, x: number, y: number) => ({
@@ -29,7 +30,7 @@ export function createRect(cx: number, cy: number): RectNode {
     type: 'rect',
     width,
     height,
-    fill: '#f4f4f5',
+    fill: solidFill('#f4f4f5'),
     stroke: null,
     strokeWidth: 2,
     cornerRadius: 0,
@@ -42,7 +43,7 @@ export function createEllipse(cx: number, cy: number): EllipseNode {
     type: 'ellipse',
     radiusX: 80,
     radiusY: 80,
-    fill: '#e4e4e7',
+    fill: solidFill('#e4e4e7'),
     stroke: null,
     strokeWidth: 2,
   }
@@ -68,7 +69,7 @@ export function createText(cx: number, cy: number): TextNode {
     fontFamily: 'Inter',
     fontSize,
     fontStyle: 'bold',
-    fill: '#0a0a0a',
+    fill: solidFill('#0a0a0a'),
     align: 'center',
     letterSpacing: 0,
     width,
@@ -81,7 +82,7 @@ export function createPolygon(cx: number, cy: number): PolygonNode {
     type: 'polygon',
     sides: 5,
     radius: 80,
-    fill: '#f4f4f5',
+    fill: solidFill('#f4f4f5'),
     stroke: null,
     strokeWidth: 2,
   }
@@ -94,7 +95,7 @@ export function createStar(cx: number, cy: number): StarNode {
     points: 5,
     outerRadius: 80,
     innerRadius: 36,
-    fill: '#f4f4f5',
+    fill: solidFill('#f4f4f5'),
     stroke: null,
     strokeWidth: 2,
   }
@@ -117,7 +118,7 @@ export function createIcon(cx: number, cy: number, iconName = 'ph:star-bold', fi
     ...base('Icon', cx - size / 2, cy - size / 2),
     type: 'icon',
     iconName,
-    fill,
+    fill: solidFill(fill),
     width: size,
     height: size,
   }

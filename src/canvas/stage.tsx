@@ -9,7 +9,9 @@ import { TextEditor } from '@/canvas/text-editor'
 import { Guides } from '@/canvas/guides'
 import { PenDraftPreview } from '@/canvas/pen-draft-preview'
 import { PathEditOverlay } from '@/canvas/path-edit-overlay'
+import { GradientHandleOverlay } from '@/canvas/gradient-handle-overlay'
 import { computeSnap, type Bbox, type SnapGuide } from '@/composition/alignment'
+import { constrainToAxis } from '@/composition/geom'
 import { FONTS_LOADED_EVENT } from '@/fonts/preload'
 import type { CanvasNode, TextNode } from '@/canvas/types'
 
@@ -23,22 +25,6 @@ function lastAnchor(
   if (draft.pending) return draft.pending
   if (draft.segments.length > 0) return draft.segments[draft.segments.length - 1]
   return null
-}
-
-// Snaps `pos` so the vector from `anchor` to `pos` is along the nearest 0° /
-// 45° / 90° direction. If anchor is null, returns pos unchanged.
-function constrainToAxis(
-  pos: { x: number; y: number },
-  anchor: { x: number; y: number } | null,
-): { x: number; y: number } {
-  if (!anchor) return pos
-  const dx = pos.x - anchor.x
-  const dy = pos.y - anchor.y
-  const angle = Math.atan2(dy, dx)
-  const step = Math.PI / 4
-  const snapped = Math.round(angle / step) * step
-  const mag = Math.hypot(dx, dy)
-  return { x: anchor.x + Math.cos(snapped) * mag, y: anchor.y + Math.sin(snapped) * mag }
 }
 
 export function EditorCanvas() {
@@ -55,6 +41,18 @@ export function EditorCanvas() {
   } | null>(null)
   const [editingTextId, setEditingTextId] = useState<string | null>(null)
   const [guides, setGuides] = useState<SnapGuide[]>([])
+  // Live Konva transform of the currently-dragged or transforming node.
+  // The store only commits x/y on dragEnd and bakes scale on transformEnd,
+  // so overlays keyed off node.x/y/rotation (the gradient handles) would lag
+  // behind during the gesture without this. Cleared on gesture end.
+  const [liveTransform, setLiveTransform] = useState<{
+    id: string
+    x: number
+    y: number
+    rotation: number
+    scaleX: number
+    scaleY: number
+  } | null>(null)
   const lastFitId = useRef(-1)
 
   const nodes = useCanvasStore((s) => s.nodes)
@@ -304,10 +302,47 @@ export function EditorCanvas() {
     if (dx !== 0) target.x(target.x() + dx)
     if (dy !== 0) target.y(target.y() + dy)
     setGuides(next)
+    if (draggedId) {
+      setLiveTransform({
+        id: draggedId,
+        x: target.x(),
+        y: target.y(),
+        rotation: target.rotation(),
+        scaleX: target.scaleX(),
+        scaleY: target.scaleY(),
+      })
+    }
   }
 
   const handleDragEnd = () => {
     setGuides([])
+    // Defer clearing liveTransform until the store has flushed the new
+    // node.x/y from NodeRenderer's onDragEnd. Otherwise the overlay falls
+    // back to the pre-drag stored coords for one frame, causing a snap.
+    requestAnimationFrame(() => setLiveTransform(null))
+  }
+
+  const handleTransform = (e: Konva.KonvaEventObject<Event>) => {
+    const t = e.target
+    const stage = stageRef.current
+    if (!stage || t === stage) return
+    const id = t.id()
+    if (!id) return
+    setLiveTransform({
+      id,
+      x: t.x(),
+      y: t.y(),
+      rotation: t.rotation(),
+      scaleX: t.scaleX(),
+      scaleY: t.scaleY(),
+    })
+  }
+
+  const handleTransformEnd = () => {
+    // bakeScale runs in NodeRenderer's onTransformEnd before this fires.
+    // Defer the clear so the baked store values land before the overlay
+    // falls back, same pattern as drag.
+    requestAnimationFrame(() => setLiveTransform(null))
   }
 
   const handleStageMouseUp = () => {
@@ -417,6 +452,8 @@ export function EditorCanvas() {
           onMouseUp={handleStageMouseUp}
           onDragMove={handleDragMove}
           onDragEnd={handleDragEnd}
+          onTransform={handleTransform}
+          onTransformEnd={handleTransformEnd}
         >
           <Layer>
             <Rect
@@ -443,6 +480,28 @@ export function EditorCanvas() {
               return n && n.type === 'path' ? (
                 <PathEditOverlay node={n} scale={viewport.scale} />
               ) : null
+            })()}
+            {/* Gradient handles — visible when a single node with a linear
+                or radial fill is selected and we're in plain select mode
+                (not pen, not edit-path). */}
+            {toolMode === 'select' && selectedIds.length === 1 && (() => {
+              const n = nodes.find((x) => x.id === selectedIds[0])
+              if (!n || n.type === 'group' || n.type === 'line' || n.type === 'icon') return null
+              if (!('fill' in n) || !n.fill) return null
+              if (n.fill.type !== 'linear' && n.fill.type !== 'radial') return null
+              const live = liveTransform?.id === n.id ? liveTransform : null
+              return (
+                <GradientHandleOverlay
+                  node={n}
+                  fill={n.fill}
+                  scale={viewport.scale}
+                  liveX={live?.x}
+                  liveY={live?.y}
+                  liveRotation={live?.rotation}
+                  liveScaleX={live?.scaleX}
+                  liveScaleY={live?.scaleY}
+                />
+              )
             })()}
           </Layer>
         </Stage>

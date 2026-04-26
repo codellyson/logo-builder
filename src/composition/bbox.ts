@@ -112,6 +112,51 @@ export function getSelectionBbox(
   return { x: minX, y: minY, width: maxX - minX, height: maxY - minY }
 }
 
+// Bbox in the node's *local* frame (origin = node.x, node.y; rotation
+// excluded). Used to seed gradient endpoints — gradients are stored in this
+// same frame so a default like `start=(0,0) end=(width,0)` makes geometric
+// sense per shape type.
+export function getNodeLocalBbox(node: CanvasNode): Bbox | null {
+  switch (node.type) {
+    case 'rect':
+      return { x: 0, y: 0, width: node.width, height: node.height }
+    case 'ellipse':
+      return {
+        x: -node.radiusX,
+        y: -node.radiusY,
+        width: node.radiusX * 2,
+        height: node.radiusY * 2,
+      }
+    case 'text':
+      return { x: 0, y: 0, width: node.width, height: node.fontSize * 1.2 }
+    case 'icon':
+      return { x: 0, y: 0, width: node.width, height: node.height }
+    case 'path':
+      return { x: 0, y: 0, width: node.width, height: node.height }
+    case 'polygon':
+      return {
+        x: -node.radius,
+        y: -node.radius,
+        width: node.radius * 2,
+        height: node.radius * 2,
+      }
+    case 'star':
+      return {
+        x: -node.outerRadius,
+        y: -node.outerRadius,
+        width: node.outerRadius * 2,
+        height: node.outerRadius * 2,
+      }
+    case 'boolean': {
+      if (!node.cache || node.cache.width === 0 || node.cache.height === 0) return null
+      return { x: 0, y: 0, width: node.cache.width, height: node.cache.height }
+    }
+    case 'line':
+    case 'group':
+      return null
+  }
+}
+
 function vertexBbox(pivotX: number, pivotY: number, pts: number[], rotation: number): Bbox {
   let minX = Infinity
   let minY = Infinity

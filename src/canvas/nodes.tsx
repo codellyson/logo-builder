@@ -3,9 +3,10 @@ import { Rect, Ellipse, Line, Text, Image as KonvaImage, Path, Group } from 'rea
 import type Konva from 'konva'
 import type { CanvasNode, IconNode } from '@/canvas/types'
 import { useCanvasStore } from '@/state/canvas-store'
-import { loadIconImage } from '@/icons/icon-svg'
+import { loadIconImage, loadIconImageWithGradient } from '@/icons/icon-svg'
 import { scalePath } from '@/composition/paper-bridge'
 import { polygonPoints, starPoints } from '@/composition/to-path'
+import { fillKonvaProps, fillSolidColor, scaleFill } from '@/composition/fills'
 
 type Props = {
   node: CanvasNode
@@ -88,9 +89,9 @@ export function NodeRenderer({
     return (
       <Rect
         {...commonProps}
+        {...fillKonvaProps(node.fill)}
         width={node.width}
         height={node.height}
-        fill={node.fill}
         stroke={node.stroke ?? undefined}
         strokeWidth={node.stroke ? node.strokeWidth : 0}
         lineJoin={node.strokeJoin ?? 'miter'}
@@ -103,9 +104,9 @@ export function NodeRenderer({
     return (
       <Ellipse
         {...commonProps}
+        {...fillKonvaProps(node.fill)}
         radiusX={node.radiusX}
         radiusY={node.radiusY}
-        fill={node.fill}
         stroke={node.stroke ?? undefined}
         strokeWidth={node.stroke ? node.strokeWidth : 0}
       />
@@ -138,11 +139,11 @@ export function NodeRenderer({
     return (
       <Text
         {...commonProps}
+        {...fillKonvaProps(node.fill)}
         text={node.text}
         fontFamily={node.fontFamily}
         fontSize={node.fontSize}
         fontStyle={node.fontStyle}
-        fill={node.fill}
         align={node.align}
         letterSpacing={node.letterSpacing}
         width={node.width}
@@ -156,8 +157,8 @@ export function NodeRenderer({
     return (
       <Path
         {...commonProps}
+        {...fillKonvaProps(node.fill)}
         data={node.data}
-        fill={node.fill ?? undefined}
         stroke={node.stroke ?? undefined}
         strokeWidth={node.stroke ? node.strokeWidth : 0}
         lineCap={node.strokeCap ?? 'butt'}
@@ -184,9 +185,9 @@ export function NodeRenderer({
     return (
       <Path
         {...commonProps}
+        {...fillKonvaProps(node.fill)}
         {...ghostProps}
         data={cache.data}
-        fill={node.fill ?? undefined}
         stroke={node.stroke ?? undefined}
         strokeWidth={node.stroke ? node.strokeWidth : 0}
         lineJoin={node.strokeJoin ?? 'miter'}
@@ -208,9 +209,9 @@ function PolygonKonva({
   return (
     <Line
       {...(commonProps as object)}
+      {...fillKonvaProps(node.fill)}
       points={points}
       closed
-      fill={node.fill}
       stroke={node.stroke ?? undefined}
       strokeWidth={node.stroke ? node.strokeWidth : 0}
       lineJoin={node.strokeJoin ?? 'miter'}
@@ -232,9 +233,9 @@ function StarKonva({
   return (
     <Line
       {...(commonProps as object)}
+      {...fillKonvaProps(node.fill)}
       points={points}
       closed
-      fill={node.fill}
       stroke={node.stroke ?? undefined}
       strokeWidth={node.stroke ? node.strokeWidth : 0}
       lineJoin={node.strokeJoin ?? 'miter'}
@@ -251,15 +252,36 @@ function IconKonva({
 }) {
   const [image, setImage] = useState<HTMLImageElement | null>(null)
 
+  // Solid → fetch iconify SVG with the color baked in. Gradient → fetch
+  // sentinel-colored SVG, rewrite all fill attrs to a `url(#id)` ref, inject
+  // the gradient def inline, and rasterize. Multi-color icons collapse to a
+  // single gradient by design (the panel surfaces this).
+  const fill = node.fill
+  const isGradient = fill.type !== 'solid'
+  const iconColor = !isGradient ? fillSolidColor(fill) ?? '#000000' : ''
+  // Serialize the gradient so the effect re-runs only when content changes,
+  // not when a new fill object with identical content arrives.
+  const fillKey = isGradient ? JSON.stringify(fill) : iconColor
+
   useEffect(() => {
     let cancelled = false
-    loadIconImage(node.iconName, node.fill).then((img) => {
+    const promise = isGradient
+      ? loadIconImageWithGradient(
+          node.iconName,
+          fill as Exclude<typeof fill, { type: 'solid' }>,
+          node.width,
+          node.height,
+        )
+      : loadIconImage(node.iconName, iconColor)
+    promise.then((img) => {
       if (!cancelled) setImage(img)
     })
     return () => {
       cancelled = true
     }
-  }, [node.iconName, node.fill])
+    // fillKey carries the gradient/solid identity for the dep array.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [node.iconName, fillKey, node.width, node.height])
 
   return (
     <KonvaImage
@@ -284,6 +306,7 @@ function bakeScale(node: CanvasNode, scaleX: number, scaleY: number, target: Kon
       rotation,
       width: Math.max(1, node.width * scaleX),
       height: Math.max(1, node.height * scaleY),
+      fill: scaleFill(node.fill, scaleX, scaleY) ?? node.fill,
     })
   } else if (node.type === 'ellipse') {
     update(node.id, {
@@ -292,6 +315,7 @@ function bakeScale(node: CanvasNode, scaleX: number, scaleY: number, target: Kon
       rotation,
       radiusX: Math.max(1, node.radiusX * scaleX),
       radiusY: Math.max(1, node.radiusY * scaleY),
+      fill: scaleFill(node.fill, scaleX, scaleY) ?? node.fill,
     })
   } else if (node.type === 'line') {
     update(node.id, {
@@ -307,6 +331,7 @@ function bakeScale(node: CanvasNode, scaleX: number, scaleY: number, target: Kon
       rotation,
       fontSize: Math.max(4, node.fontSize * scaleY),
       width: Math.max(20, node.width * scaleX),
+      fill: scaleFill(node.fill, scaleX, scaleY) ?? node.fill,
     })
   } else if (node.type === 'icon') {
     update(node.id, {
@@ -315,6 +340,7 @@ function bakeScale(node: CanvasNode, scaleX: number, scaleY: number, target: Kon
       rotation,
       width: Math.max(8, node.width * scaleX),
       height: Math.max(8, node.height * scaleY),
+      fill: scaleFill(node.fill, scaleX, scaleY) ?? node.fill,
     })
   } else if (node.type === 'path') {
     update(node.id, {
@@ -324,14 +350,19 @@ function bakeScale(node: CanvasNode, scaleX: number, scaleY: number, target: Kon
       data: scalePath(node.data, scaleX, scaleY),
       width: Math.max(1, node.width * scaleX),
       height: Math.max(1, node.height * scaleY),
+      fill: scaleFill(node.fill, scaleX, scaleY),
     })
   } else if (node.type === 'polygon') {
+    // Polygon/star use uniform-avg scale because their geometry is parametric
+    // off a single radius. Match that for the gradient so the ramp scales
+    // proportionally instead of skewing.
     const avg = (Math.abs(scaleX) + Math.abs(scaleY)) / 2
     update(node.id, {
       x,
       y,
       rotation,
       radius: Math.max(1, node.radius * avg),
+      fill: scaleFill(node.fill, avg, avg) ?? node.fill,
     })
   } else if (node.type === 'star') {
     const avg = (Math.abs(scaleX) + Math.abs(scaleY)) / 2
@@ -341,6 +372,7 @@ function bakeScale(node: CanvasNode, scaleX: number, scaleY: number, target: Kon
       rotation,
       outerRadius: Math.max(1, node.outerRadius * avg),
       innerRadius: Math.max(1, node.innerRadius * avg),
+      fill: scaleFill(node.fill, avg, avg) ?? node.fill,
     })
   } else if (node.type === 'group') {
     update(node.id, { x, y, rotation })
@@ -359,6 +391,7 @@ function bakeScale(node: CanvasNode, scaleX: number, scaleY: number, target: Kon
         height: Math.max(1, node.cache.height * scaleY),
         version: Date.now(),
       },
+      fill: scaleFill(node.fill, scaleX, scaleY),
     })
   }
 }

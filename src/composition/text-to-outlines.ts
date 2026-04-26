@@ -69,3 +69,4 @@ export async function textToOutlines(node: TextNode): Promise<PathNode | null> {
     height: bbox.y2 - bbox.y1,
   }
 }
+

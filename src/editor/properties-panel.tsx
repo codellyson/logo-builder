@@ -22,6 +22,11 @@ import type {
   TextNode,
 } from '@/canvas/types'
 
+// Fallback bbox for FillEditor when getNodeLocalBbox returns null (e.g. a
+// boolean with no resolved cache yet). Gradient defaults seeded from this
+// won't be perfectly fitted but they're recoverable via on-canvas handles.
+const FILL_BBOX_FALLBACK = { x: 0, y: 0, width: 100, height: 100 }
+
 const CAP_OPTIONS: { value: StrokeCap; label: string }[] = [
   { value: 'butt', label: 'Butt' },
   { value: 'round', label: 'Round' },
@@ -35,6 +40,8 @@ const JOIN_OPTIONS: { value: StrokeJoin; label: string }[] = [
 import { ColorPicker } from '@/colors/color-picker'
 import { FontPicker } from '@/fonts/font-picker'
 import { IconPicker } from '@/icons/icon-picker'
+import { FillEditor } from '@/editor/properties/fill-editor'
+import { getNodeLocalBbox } from '@/composition/bbox'
 import { FieldRow, NumberField, Segmented, Slider01, TextField, TextAreaField } from '@/ui/fields'
 
 export function PropertiesPanel() {
@@ -172,7 +179,11 @@ function StarFields({ node }: { node: StarNode }) {
         </FieldRow>
       </div>
       <FieldRow label="Fill">
-        <ColorPicker value={node.fill} onChange={(hex) => hex && update(node.id, { fill: hex })} />
+        <FillEditor
+          value={node.fill}
+          onChange={(f) => f && update(node.id, { fill: f })}
+          bbox={getNodeLocalBbox(node) ?? FILL_BBOX_FALLBACK}
+        />
       </FieldRow>
       <FieldRow label="Stroke">
         <ColorPicker
@@ -225,7 +236,11 @@ function PolygonFields({ node }: { node: PolygonNode }) {
         </FieldRow>
       </div>
       <FieldRow label="Fill">
-        <ColorPicker value={node.fill} onChange={(hex) => hex && update(node.id, { fill: hex })} />
+        <FillEditor
+          value={node.fill}
+          onChange={(f) => f && update(node.id, { fill: f })}
+          bbox={getNodeLocalBbox(node) ?? FILL_BBOX_FALLBACK}
+        />
       </FieldRow>
       <FieldRow label="Stroke">
         <ColorPicker
@@ -322,7 +337,12 @@ function BooleanFields({ node }: { node: BooleanNode }) {
         />
       </FieldRow>
       <FieldRow label="Fill">
-        <ColorPicker value={node.fill} allowNone onChange={(hex) => update(node.id, { fill: hex })} />
+        <FillEditor
+          value={node.fill}
+          onChange={(f) => update(node.id, { fill: f })}
+          bbox={getNodeLocalBbox(node) ?? FILL_BBOX_FALLBACK}
+          allowNone
+        />
       </FieldRow>
       <FieldRow label="Stroke">
         <ColorPicker
@@ -366,10 +386,11 @@ function PathFields({ node }: { node: PathNode }) {
   return (
     <div className="space-y-2 border-t border-neutral-800 pt-3">
       <FieldRow label="Fill">
-        <ColorPicker
+        <FillEditor
           value={node.fill}
+          onChange={(f) => update(node.id, { fill: f })}
+          bbox={getNodeLocalBbox(node) ?? FILL_BBOX_FALLBACK}
           allowNone
-          onChange={(hex) => update(node.id, { fill: hex })}
         />
       </FieldRow>
       <FieldRow label="Stroke">
@@ -502,7 +523,11 @@ function RectFields({ node }: { node: RectNode }) {
         </FieldRow>
       </div>
       <FieldRow label="Fill">
-        <ColorPicker value={node.fill} onChange={(hex) => hex && update(node.id, { fill: hex })} />
+        <FillEditor
+          value={node.fill}
+          onChange={(f) => f && update(node.id, { fill: f })}
+          bbox={getNodeLocalBbox(node) ?? FILL_BBOX_FALLBACK}
+        />
       </FieldRow>
       <FieldRow label="Stroke">
         <ColorPicker
@@ -553,7 +578,11 @@ function EllipseFields({ node }: { node: EllipseNode }) {
         </FieldRow>
       </div>
       <FieldRow label="Fill">
-        <ColorPicker value={node.fill} onChange={(hex) => hex && update(node.id, { fill: hex })} />
+        <FillEditor
+          value={node.fill}
+          onChange={(f) => f && update(node.id, { fill: f })}
+          bbox={getNodeLocalBbox(node) ?? FILL_BBOX_FALLBACK}
+        />
       </FieldRow>
       <FieldRow label="Stroke">
         <ColorPicker
@@ -660,7 +689,11 @@ function TextFields({ node }: { node: TextNode }) {
         <NumberField value={node.width} min={20} onCommit={(n) => update(node.id, { width: n })} />
       </FieldRow>
       <FieldRow label="Fill">
-        <ColorPicker value={node.fill} onChange={(hex) => hex && update(node.id, { fill: hex })} />
+        <FillEditor
+          value={node.fill}
+          onChange={(f) => f && update(node.id, { fill: f })}
+          bbox={getNodeLocalBbox(node) ?? FILL_BBOX_FALLBACK}
+        />
       </FieldRow>
     </div>
   )
@@ -677,8 +710,18 @@ function IconFields({ node }: { node: IconNode }) {
         />
       </FieldRow>
       <FieldRow label="Fill">
-        <ColorPicker value={node.fill} onChange={(hex) => hex && update(node.id, { fill: hex })} />
+        <FillEditor
+          value={node.fill}
+          onChange={(f) => f && update(node.id, { fill: f })}
+          bbox={getNodeLocalBbox(node) ?? FILL_BBOX_FALLBACK}
+        />
       </FieldRow>
+      {node.fill.type !== 'solid' && (
+        <div className="rounded border border-neutral-800 bg-neutral-900/50 px-2 py-1.5 text-[10px] text-neutral-500">
+          Gradient on icons recolors all paths — multi-color icons collapse
+          to a single ramp.
+        </div>
+      )}
       <div className="grid grid-cols-2 gap-2">
         <FieldRow label="Width">
           <NumberField value={node.width} min={8} onCommit={(n) => update(node.id, { width: n })} />

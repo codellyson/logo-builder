@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Icon } from '@iconify/react'
 import { useCanvasStore } from '@/state/canvas-store'
 import { ColorPicker } from '@/colors/color-picker'
+import { solidFill } from '@/composition/fills'
 import { ROLE_LABELS, ROLE_ORDER, generatePalette, type PaletteRole } from '@/colors/palette'
 
 export function PalettePanel() {
@@ -19,7 +20,7 @@ export function PalettePanel() {
       const n = nodes.find((x) => x.id === id)
       if (!n) continue
       if (n.type === 'line') updateNode(id, { stroke: hex })
-      else if ('fill' in n) updateNode(id, { fill: hex })
+      else if ('fill' in n) updateNode(id, { fill: solidFill(hex) })
     }
   }
 

@@ -10,6 +10,7 @@ import {
 import { textToOutlines } from '@/composition/text-to-outlines'
 import { fetchIconSvg } from '@/icons/icon-svg'
 import { expandStroke, type ExpandStrokeOptions } from '@/composition/stroke-outline'
+import { fillSolidColor } from '@/composition/fills'
 
 export type NodeToPathCtx = {
   childrenOf: Map<string | undefined, CanvasNode[]>
@@ -118,7 +119,7 @@ async function toLocalPath(
   }
 
   if (node.type === 'icon') {
-    const svg = await fetchIconSvg(node.iconName, node.fill)
+    const svg = await fetchIconSvg(node.iconName, fillSolidColor(node.fill) ?? '#000000')
     if (!svg || !svg.startsWith('<svg')) return null
     return iconSvgToPath(svg, node.width, node.height)
   }

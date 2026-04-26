@@ -6,7 +6,14 @@ import type { Palette } from '@/colors/palette'
 const STORAGE_KEY = 'logo-builder:autosave:v1'
 const DEBOUNCE_MS = 500
 
+// Bumped from 1 → 2 when `fill: string` became `fill: Fill` (gradients sprint
+// phase 1). Older snapshots can't be safely loaded — node types diverge — so
+// the load path rejects them with a console warning and the user gets a fresh
+// editor. Old data sits orphaned in localStorage; greenfield, no migration.
+const SCHEMA_VERSION = 2
+
 type Snapshot = {
+  version?: number
   nodes: CanvasNode[]
   stageWidth: number
   stageHeight: number
@@ -20,6 +27,12 @@ export function loadSnapshot(): Snapshot | null {
     if (!raw) return null
     const parsed = JSON.parse(raw) as Snapshot
     if (!parsed || !Array.isArray(parsed.nodes)) return null
+    if (parsed.version !== SCHEMA_VERSION) {
+      console.warn(
+        `[logo-builder] ignoring autosave at schema v${parsed.version ?? 1}; current is v${SCHEMA_VERSION}. Starting fresh.`,
+      )
+      return null
+    }
     return parsed
   } catch {
     return null
@@ -28,7 +41,7 @@ export function loadSnapshot(): Snapshot | null {
 
 export function saveSnapshot(snap: Snapshot) {
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(snap))
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ ...snap, version: SCHEMA_VERSION }))
   } catch {
     // ignore quota errors
   }

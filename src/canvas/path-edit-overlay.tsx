@@ -3,6 +3,7 @@ import { Circle, Group, Line, Path, Rect } from 'react-konva'
 import type Konva from 'konva'
 import type { PathNode } from '@/canvas/types'
 import { useCanvasStore } from '@/state/canvas-store'
+import { fillKonvaProps } from '@/composition/fills'
 import {
   parseSegments,
   segmentsToPathData,
@@ -60,8 +61,8 @@ export function PathEditOverlay({ node, scale }: Props) {
       {/* Live preview: fill + stroke match the node's own style so the edit
           feels "in place" rather than against a ghost outline. */}
       <Path
+        {...fillKonvaProps(node.fill)}
         data={previewData}
-        fill={node.fill ?? undefined}
         stroke={node.stroke ?? undefined}
         strokeWidth={node.stroke ? node.strokeWidth : 0}
         lineCap={node.strokeCap ?? 'butt'}
