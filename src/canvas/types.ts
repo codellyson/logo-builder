@@ -75,7 +75,7 @@ export type RectNode = NodeBase & {
   width: number
   height: number
   fill: Fill
-  stroke: string | null
+  stroke: Fill | null
   strokeWidth: number
   strokeJoin?: StrokeJoin
   cornerRadius: number
@@ -86,14 +86,16 @@ export type EllipseNode = NodeBase & {
   radiusX: number
   radiusY: number
   fill: Fill
-  stroke: string | null
+  stroke: Fill | null
   strokeWidth: number
 }
 
 export type LineNode = NodeBase & {
   type: 'line'
   points: number[]
-  stroke: string
+  // Lines are stroke-only (no fill). Stroke is non-nullable because a line
+  // with no stroke is invisible and serves no purpose.
+  stroke: Fill
   strokeWidth: number
   strokeCap?: StrokeCap
   strokeJoin?: StrokeJoin
@@ -123,7 +125,7 @@ export type PathNode = NodeBase & {
   type: 'path'
   data: string
   fill: Fill | null
-  stroke: string | null
+  stroke: Fill | null
   strokeWidth: number
   strokeCap?: StrokeCap
   strokeJoin?: StrokeJoin
@@ -136,7 +138,7 @@ export type PolygonNode = NodeBase & {
   sides: number   // >= 3
   radius: number  // circumscribed radius
   fill: Fill
-  stroke: string | null
+  stroke: Fill | null
   strokeWidth: number
   strokeJoin?: StrokeJoin
 }
@@ -147,7 +149,7 @@ export type StarNode = NodeBase & {
   outerRadius: number
   innerRadius: number    // 0 < inner < outer
   fill: Fill
-  stroke: string | null
+  stroke: Fill | null
   strokeWidth: number
   strokeJoin?: StrokeJoin
 }
@@ -161,7 +163,7 @@ export type BooleanNode = NodeBase & {
   type: 'boolean'
   op: BooleanOp
   fill: Fill | null
-  stroke: string | null
+  stroke: Fill | null
   strokeWidth: number
   strokeJoin?: StrokeJoin
   collapsed?: boolean

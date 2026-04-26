@@ -6,11 +6,12 @@ import type { Palette } from '@/colors/palette'
 const STORAGE_KEY = 'logo-builder:autosave:v1'
 const DEBOUNCE_MS = 500
 
-// Bumped from 1 → 2 when `fill: string` became `fill: Fill` (gradients sprint
-// phase 1). Older snapshots can't be safely loaded — node types diverge — so
-// the load path rejects them with a console warning and the user gets a fresh
-// editor. Old data sits orphaned in localStorage; greenfield, no migration.
-const SCHEMA_VERSION = 2
+// Bumped on each schema-breaking change. v2 added Fill (gradients sprint),
+// v3 widened stroke from `string | null` to `Fill | null` (stroke gradients).
+// Older snapshots can't be safely loaded — node types diverge — so the load
+// path rejects them with a console warning and the user gets a fresh editor.
+// Old data sits orphaned in localStorage; greenfield, no migration.
+const SCHEMA_VERSION = 3
 
 type Snapshot = {
   version?: number

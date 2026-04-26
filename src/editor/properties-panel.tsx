@@ -186,10 +186,11 @@ function StarFields({ node }: { node: StarNode }) {
         />
       </FieldRow>
       <FieldRow label="Stroke">
-        <ColorPicker
+        <FillEditor
           value={node.stroke}
+          onChange={(f) => update(node.id, { stroke: f })}
+          bbox={getNodeLocalBbox(node) ?? FILL_BBOX_FALLBACK}
           allowNone
-          onChange={(hex) => update(node.id, { stroke: hex })}
         />
       </FieldRow>
       {node.stroke && (
@@ -243,10 +244,11 @@ function PolygonFields({ node }: { node: PolygonNode }) {
         />
       </FieldRow>
       <FieldRow label="Stroke">
-        <ColorPicker
+        <FillEditor
           value={node.stroke}
+          onChange={(f) => update(node.id, { stroke: f })}
+          bbox={getNodeLocalBbox(node) ?? FILL_BBOX_FALLBACK}
           allowNone
-          onChange={(hex) => update(node.id, { stroke: hex })}
         />
       </FieldRow>
       {node.stroke && (
@@ -345,10 +347,11 @@ function BooleanFields({ node }: { node: BooleanNode }) {
         />
       </FieldRow>
       <FieldRow label="Stroke">
-        <ColorPicker
+        <FillEditor
           value={node.stroke}
+          onChange={(f) => update(node.id, { stroke: f })}
+          bbox={getNodeLocalBbox(node) ?? FILL_BBOX_FALLBACK}
           allowNone
-          onChange={(hex) => update(node.id, { stroke: hex })}
         />
       </FieldRow>
       {node.stroke && (
@@ -394,10 +397,11 @@ function PathFields({ node }: { node: PathNode }) {
         />
       </FieldRow>
       <FieldRow label="Stroke">
-        <ColorPicker
+        <FillEditor
           value={node.stroke}
+          onChange={(f) => update(node.id, { stroke: f })}
+          bbox={getNodeLocalBbox(node) ?? FILL_BBOX_FALLBACK}
           allowNone
-          onChange={(hex) => update(node.id, { stroke: hex })}
         />
       </FieldRow>
       {node.stroke && (
@@ -530,10 +534,11 @@ function RectFields({ node }: { node: RectNode }) {
         />
       </FieldRow>
       <FieldRow label="Stroke">
-        <ColorPicker
+        <FillEditor
           value={node.stroke}
+          onChange={(f) => update(node.id, { stroke: f })}
+          bbox={getNodeLocalBbox(node) ?? FILL_BBOX_FALLBACK}
           allowNone
-          onChange={(hex) => update(node.id, { stroke: hex })}
         />
       </FieldRow>
       {node.stroke && (
@@ -585,10 +590,11 @@ function EllipseFields({ node }: { node: EllipseNode }) {
         />
       </FieldRow>
       <FieldRow label="Stroke">
-        <ColorPicker
+        <FillEditor
           value={node.stroke}
+          onChange={(f) => update(node.id, { stroke: f })}
+          bbox={getNodeLocalBbox(node) ?? FILL_BBOX_FALLBACK}
           allowNone
-          onChange={(hex) => update(node.id, { stroke: hex })}
         />
       </FieldRow>
       {node.stroke && (
@@ -609,7 +615,11 @@ function LineFields({ node }: { node: LineNode }) {
   return (
     <div className="space-y-2 border-t border-neutral-800 pt-3">
       <FieldRow label="Stroke">
-        <ColorPicker value={node.stroke} onChange={(hex) => hex && update(node.id, { stroke: hex })} />
+        <FillEditor
+          value={node.stroke}
+          onChange={(f) => f && update(node.id, { stroke: f })}
+          bbox={getNodeLocalBbox(node) ?? FILL_BBOX_FALLBACK}
+        />
       </FieldRow>
       <FieldRow label="Stroke Width">
         <NumberField

@@ -54,7 +54,7 @@ export function createLine(cx: number, cy: number): LineNode {
     ...base('Line', cx - 80, cy),
     type: 'line',
     points: [0, 0, 160, 0],
-    stroke: '#0a0a0a',
+    stroke: solidFill('#0a0a0a'),
     strokeWidth: 4,
   }
 }

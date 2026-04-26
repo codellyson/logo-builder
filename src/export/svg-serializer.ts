@@ -20,17 +20,48 @@ import { polygonPoints, starPoints } from '@/composition/to-path'
 import { fillSolidColor, splitColorOpacity } from '@/composition/fills'
 
 type StrokedAttrs = {
-  stroke?: string | null
+  stroke?: Fill | null
   strokeWidth?: number
   strokeCap?: StrokeCap
   strokeJoin?: StrokeJoin
 }
 
-function strokeAttrs(n: StrokedAttrs): string {
+// Solid stroke → `stroke="hex"`. Gradient stroke → emits a separate
+// gradient def with id `s-${nodeId}` (alongside any fill gradient under
+// `g-${nodeId}`) and references it via `stroke="url(#)"`. Same
+// `userSpaceOnUse` convention as fills so coords stay in node-local frame.
+function strokeAttrs(n: StrokedAttrs & { id?: string }, defs?: Defs): string {
   if (!n.stroke) return ''
   const cap = n.strokeCap ?? 'butt'
   const join = n.strokeJoin ?? 'miter'
-  return ` stroke="${n.stroke}" stroke-width="${n.strokeWidth}" stroke-linecap="${cap}" stroke-linejoin="${join}"`
+  const widthAndJoinTail = ` stroke-width="${n.strokeWidth}" stroke-linecap="${cap}" stroke-linejoin="${join}"`
+  if (n.stroke.type === 'solid') {
+    const { color, opacity } = splitColorOpacity(n.stroke.color)
+    const op = opacity < 1 ? ` stroke-opacity="${opacity}"` : ''
+    return ` stroke="${color}"${op}${widthAndJoinTail}`
+  }
+  if (!n.id || !defs) {
+    // Fallback: caller didn't thread defs/id through. Collapse to first stop.
+    const fallback = fillSolidColor(n.stroke) ?? '#000000'
+    return ` stroke="${fallback}"${widthAndJoinTail}`
+  }
+  const id = strokeGradientId(n.id)
+  if (n.stroke.type === 'linear') {
+    defs.gradients.push(
+      `<linearGradient id="${id}" gradientUnits="userSpaceOnUse" x1="${n.stroke.start.x}" y1="${n.stroke.start.y}" x2="${n.stroke.end.x}" y2="${n.stroke.end.y}">${stopXml(n.stroke.stops)}</linearGradient>`,
+    )
+  } else {
+    const fx = n.stroke.focal?.x ?? n.stroke.center.x
+    const fy = n.stroke.focal?.y ?? n.stroke.center.y
+    defs.gradients.push(
+      `<radialGradient id="${id}" gradientUnits="userSpaceOnUse" cx="${n.stroke.center.x}" cy="${n.stroke.center.y}" r="${n.stroke.radius}" fx="${fx}" fy="${fy}">${stopXml(n.stroke.stops)}</radialGradient>`,
+    )
+  }
+  return ` stroke="url(#${id})"${widthAndJoinTail}`
+}
+
+function strokeGradientId(nodeId: string): string {
+  return `s-${nodeId}`
 }
 
 type Opts = {
@@ -103,37 +134,37 @@ function fillAttrFor(
 
 function rectSvg(n: RectNode, defs: Defs): string {
   const rx = n.cornerRadius ? ` rx="${n.cornerRadius}" ry="${n.cornerRadius}"` : ''
-  return `<rect width="${n.width}" height="${n.height}" ${fillAttrFor(n.fill, n.id, defs)}${strokeAttrs(n)}${rx}/>`
+  return `<rect width="${n.width}" height="${n.height}" ${fillAttrFor(n.fill, n.id, defs)}${strokeAttrs(n, defs)}${rx}/>`
 }
 
 function ellipseSvg(n: EllipseNode, defs: Defs): string {
-  return `<ellipse rx="${n.radiusX}" ry="${n.radiusY}" ${fillAttrFor(n.fill, n.id, defs)}${strokeAttrs(n)}/>`
+  return `<ellipse rx="${n.radiusX}" ry="${n.radiusY}" ${fillAttrFor(n.fill, n.id, defs)}${strokeAttrs(n, defs)}/>`
 }
 
-function lineSvg(n: LineNode): string {
+function lineSvg(n: LineNode, defs: Defs): string {
   const pts: number[] = n.points
   if (pts.length < 4) return ''
   let d = `M${pts[0]} ${pts[1]}`
   for (let i = 2; i < pts.length; i += 2) d += `L${pts[i]} ${pts[i + 1]}`
-  return `<path d="${d}" fill="none"${strokeAttrs(n)}/>`
+  return `<path d="${d}" fill="none"${strokeAttrs(n, defs)}/>`
 }
 
 function pathSvg(n: PathNode, defs: Defs): string {
-  return `<path d="${n.data}" ${fillAttrFor(n.fill, n.id, defs)}${strokeAttrs(n)}/>`
+  return `<path d="${n.data}" ${fillAttrFor(n.fill, n.id, defs)}${strokeAttrs(n, defs)}/>`
 }
 
 function polygonSvg(n: PolygonNode, defs: Defs): string {
   const pts = polygonPoints(n.sides, n.radius)
   const joined: string[] = []
   for (let i = 0; i < pts.length; i += 2) joined.push(`${pts[i]},${pts[i + 1]}`)
-  return `<polygon points="${joined.join(' ')}" ${fillAttrFor(n.fill, n.id, defs)}${strokeAttrs(n)}/>`
+  return `<polygon points="${joined.join(' ')}" ${fillAttrFor(n.fill, n.id, defs)}${strokeAttrs(n, defs)}/>`
 }
 
 function starSvg(n: StarNode, defs: Defs): string {
   const pts = starPoints(n.points, n.outerRadius, n.innerRadius)
   const joined: string[] = []
   for (let i = 0; i < pts.length; i += 2) joined.push(`${pts[i]},${pts[i + 1]}`)
-  return `<polygon points="${joined.join(' ')}" ${fillAttrFor(n.fill, n.id, defs)}${strokeAttrs(n)}/>`
+  return `<polygon points="${joined.join(' ')}" ${fillAttrFor(n.fill, n.id, defs)}${strokeAttrs(n, defs)}/>`
 }
 
 async function textSvg(n: TextNode, defs: Defs): Promise<string> {
@@ -203,7 +234,7 @@ async function booleanSvg(n: BooleanNode, allNodes: CanvasNode[], defs: Defs): P
     data = computed?.data
   }
   if (!data) return ''
-  return `<path d="${data}" ${fillAttrFor(n.fill, n.id, defs)}${strokeAttrs(n)}/>`
+  return `<path d="${data}" ${fillAttrFor(n.fill, n.id, defs)}${strokeAttrs(n, defs)}/>`
 }
 
 async function nodeSvg(
@@ -230,7 +261,7 @@ async function nodeSvg(
   let body = ''
   if (n.type === 'rect') body = rectSvg(n, defs)
   else if (n.type === 'ellipse') body = ellipseSvg(n, defs)
-  else if (n.type === 'line') body = lineSvg(n)
+  else if (n.type === 'line') body = lineSvg(n, defs)
   else if (n.type === 'path') body = pathSvg(n, defs)
   else if (n.type === 'polygon') body = polygonSvg(n, defs)
   else if (n.type === 'star') body = starSvg(n, defs)

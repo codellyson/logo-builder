@@ -6,7 +6,7 @@ import { useCanvasStore } from '@/state/canvas-store'
 import { loadIconImage, loadIconImageWithGradient } from '@/icons/icon-svg'
 import { scalePath } from '@/composition/paper-bridge'
 import { polygonPoints, starPoints } from '@/composition/to-path'
-import { fillKonvaProps, fillSolidColor, scaleFill } from '@/composition/fills'
+import { fillKonvaProps, fillSolidColor, scaleFill, strokeKonvaProps } from '@/composition/fills'
 
 type Props = {
   node: CanvasNode
@@ -92,7 +92,7 @@ export function NodeRenderer({
         {...fillKonvaProps(node.fill)}
         width={node.width}
         height={node.height}
-        stroke={node.stroke ?? undefined}
+        {...strokeKonvaProps(node.stroke)}
         strokeWidth={node.stroke ? node.strokeWidth : 0}
         lineJoin={node.strokeJoin ?? 'miter'}
         cornerRadius={node.cornerRadius}
@@ -107,7 +107,7 @@ export function NodeRenderer({
         {...fillKonvaProps(node.fill)}
         radiusX={node.radiusX}
         radiusY={node.radiusY}
-        stroke={node.stroke ?? undefined}
+        {...strokeKonvaProps(node.stroke)}
         strokeWidth={node.stroke ? node.strokeWidth : 0}
       />
     )
@@ -118,7 +118,7 @@ export function NodeRenderer({
       <Line
         {...commonProps}
         points={node.points}
-        stroke={node.stroke}
+        {...strokeKonvaProps(node.stroke)}
         strokeWidth={node.strokeWidth}
         lineCap={node.strokeCap ?? 'butt'}
         lineJoin={node.strokeJoin ?? 'miter'}
@@ -159,7 +159,7 @@ export function NodeRenderer({
         {...commonProps}
         {...fillKonvaProps(node.fill)}
         data={node.data}
-        stroke={node.stroke ?? undefined}
+        {...strokeKonvaProps(node.stroke)}
         strokeWidth={node.stroke ? node.strokeWidth : 0}
         lineCap={node.strokeCap ?? 'butt'}
         lineJoin={node.strokeJoin ?? 'miter'}
@@ -188,7 +188,7 @@ export function NodeRenderer({
         {...fillKonvaProps(node.fill)}
         {...ghostProps}
         data={cache.data}
-        stroke={node.stroke ?? undefined}
+        {...strokeKonvaProps(node.stroke)}
         strokeWidth={node.stroke ? node.strokeWidth : 0}
         lineJoin={node.strokeJoin ?? 'miter'}
       />
@@ -212,7 +212,7 @@ function PolygonKonva({
       {...fillKonvaProps(node.fill)}
       points={points}
       closed
-      stroke={node.stroke ?? undefined}
+      {...strokeKonvaProps(node.stroke)}
       strokeWidth={node.stroke ? node.strokeWidth : 0}
       lineJoin={node.strokeJoin ?? 'miter'}
     />
@@ -236,7 +236,7 @@ function StarKonva({
       {...fillKonvaProps(node.fill)}
       points={points}
       closed
-      stroke={node.stroke ?? undefined}
+      {...strokeKonvaProps(node.stroke)}
       strokeWidth={node.stroke ? node.strokeWidth : 0}
       lineJoin={node.strokeJoin ?? 'miter'}
     />
@@ -307,6 +307,7 @@ function bakeScale(node: CanvasNode, scaleX: number, scaleY: number, target: Kon
       width: Math.max(1, node.width * scaleX),
       height: Math.max(1, node.height * scaleY),
       fill: scaleFill(node.fill, scaleX, scaleY) ?? node.fill,
+      stroke: scaleFill(node.stroke, scaleX, scaleY),
     })
   } else if (node.type === 'ellipse') {
     update(node.id, {
@@ -316,6 +317,7 @@ function bakeScale(node: CanvasNode, scaleX: number, scaleY: number, target: Kon
       radiusX: Math.max(1, node.radiusX * scaleX),
       radiusY: Math.max(1, node.radiusY * scaleY),
       fill: scaleFill(node.fill, scaleX, scaleY) ?? node.fill,
+      stroke: scaleFill(node.stroke, scaleX, scaleY),
     })
   } else if (node.type === 'line') {
     update(node.id, {
@@ -323,6 +325,7 @@ function bakeScale(node: CanvasNode, scaleX: number, scaleY: number, target: Kon
       y,
       rotation,
       points: node.points.map((p, i) => (i % 2 === 0 ? p * scaleX : p * scaleY)),
+      stroke: scaleFill(node.stroke, scaleX, scaleY) ?? node.stroke,
     })
   } else if (node.type === 'text') {
     update(node.id, {
@@ -351,6 +354,7 @@ function bakeScale(node: CanvasNode, scaleX: number, scaleY: number, target: Kon
       width: Math.max(1, node.width * scaleX),
       height: Math.max(1, node.height * scaleY),
       fill: scaleFill(node.fill, scaleX, scaleY),
+      stroke: scaleFill(node.stroke, scaleX, scaleY),
     })
   } else if (node.type === 'polygon') {
     // Polygon/star use uniform-avg scale because their geometry is parametric
@@ -363,6 +367,7 @@ function bakeScale(node: CanvasNode, scaleX: number, scaleY: number, target: Kon
       rotation,
       radius: Math.max(1, node.radius * avg),
       fill: scaleFill(node.fill, avg, avg) ?? node.fill,
+      stroke: scaleFill(node.stroke, avg, avg),
     })
   } else if (node.type === 'star') {
     const avg = (Math.abs(scaleX) + Math.abs(scaleY)) / 2
@@ -373,6 +378,7 @@ function bakeScale(node: CanvasNode, scaleX: number, scaleY: number, target: Kon
       outerRadius: Math.max(1, node.outerRadius * avg),
       innerRadius: Math.max(1, node.innerRadius * avg),
       fill: scaleFill(node.fill, avg, avg) ?? node.fill,
+      stroke: scaleFill(node.stroke, avg, avg),
     })
   } else if (node.type === 'group') {
     update(node.id, { x, y, rotation })
@@ -392,6 +398,7 @@ function bakeScale(node: CanvasNode, scaleX: number, scaleY: number, target: Kon
         version: Date.now(),
       },
       fill: scaleFill(node.fill, scaleX, scaleY),
+      stroke: scaleFill(node.stroke, scaleX, scaleY),
     })
   }
 }

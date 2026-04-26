@@ -1,5 +1,5 @@
 import paper from 'paper'
-import type { CanvasNode, LineNode, PathNode, StrokeCap, StrokeJoin } from '@/canvas/types'
+import type { CanvasNode, Fill, LineNode, PathNode, StrokeCap, StrokeJoin } from '@/canvas/types'
 import { ensureInit } from '@/composition/paper-bridge'
 import {
   rectToPathData,
@@ -44,7 +44,7 @@ export async function nodeToWorldPath(
 // --- Stroke helpers ---
 
 type StrokedLike = {
-  stroke: string | null
+  stroke: Fill | null
   strokeWidth: number
   strokeCap?: StrokeCap
   strokeJoin?: StrokeJoin

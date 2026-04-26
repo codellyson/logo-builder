@@ -156,6 +156,32 @@ export function fillKonvaProps(fill: Fill | null | undefined): Record<string, un
   }
 }
 
+// Mirror of fillKonvaProps for stroke. Konva supports
+// strokeLinearGradient* / strokeRadialGradient* on every Shape — same shape
+// as the fill props, prefixed with "stroke" instead of "fill".
+export function strokeKonvaProps(stroke: Fill | null | undefined): Record<string, unknown> {
+  if (!stroke) return { stroke: undefined, strokeEnabled: false }
+  if (stroke.type === 'solid') return { stroke: stroke.color, strokeEnabled: true }
+  if (stroke.type === 'linear') {
+    return {
+      stroke: undefined,
+      strokeEnabled: true,
+      strokeLinearGradientStartPoint: stroke.start,
+      strokeLinearGradientEndPoint: stroke.end,
+      strokeLinearGradientColorStops: toKonvaStops(stroke.stops),
+    }
+  }
+  return {
+    stroke: undefined,
+    strokeEnabled: true,
+    strokeRadialGradientStartPoint: stroke.focal ?? stroke.center,
+    strokeRadialGradientStartRadius: 0,
+    strokeRadialGradientEndPoint: stroke.center,
+    strokeRadialGradientEndRadius: stroke.radius,
+    strokeRadialGradientColorStops: toKonvaStops(stroke.stops),
+  }
+}
+
 // Splits an 8-digit hex (#RRGGBBAA) into its 6-digit color and an opacity in
 // [0, 1]. Used by SVG export — `<stop>` takes color and opacity as separate
 // attributes, unlike CSS hex8.

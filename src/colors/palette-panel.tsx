@@ -19,7 +19,7 @@ export function PalettePanel() {
     for (const id of selectedIds) {
       const n = nodes.find((x) => x.id === id)
       if (!n) continue
-      if (n.type === 'line') updateNode(id, { stroke: hex })
+      if (n.type === 'line') updateNode(id, { stroke: solidFill(hex) })
       else if ('fill' in n) updateNode(id, { fill: solidFill(hex) })
     }
   }
