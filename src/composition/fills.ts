@@ -156,9 +156,13 @@ export function fillKonvaProps(fill: Fill | null | undefined): Record<string, un
   }
 }
 
-// Mirror of fillKonvaProps for stroke. Konva supports
-// strokeLinearGradient* / strokeRadialGradient* on every Shape — same shape
-// as the fill props, prefixed with "stroke" instead of "fill".
+// Konva render props for a stroke. Solid → `stroke: hex`. Linear gradient
+// → `strokeLinearGradient*` (Konva native). Radial gradient → `strokeEnabled:
+// false`, because Konva 10.2.5 implements only `_strokeLinearGradient`, no
+// radial counterpart. The renderer overlays an expanded stroke outline path
+// filled with the radial gradient as the fallback (see
+// `computeStrokeOutlinePathData` in stroke-outline.ts and the
+// RadialStrokeOverlay in nodes.tsx).
 export function strokeKonvaProps(stroke: Fill | null | undefined): Record<string, unknown> {
   if (!stroke) return { stroke: undefined, strokeEnabled: false }
   if (stroke.type === 'solid') return { stroke: stroke.color, strokeEnabled: true }
@@ -171,15 +175,7 @@ export function strokeKonvaProps(stroke: Fill | null | undefined): Record<string
       strokeLinearGradientColorStops: toKonvaStops(stroke.stops),
     }
   }
-  return {
-    stroke: undefined,
-    strokeEnabled: true,
-    strokeRadialGradientStartPoint: stroke.focal ?? stroke.center,
-    strokeRadialGradientStartRadius: 0,
-    strokeRadialGradientEndPoint: stroke.center,
-    strokeRadialGradientEndRadius: stroke.radius,
-    strokeRadialGradientColorStops: toKonvaStops(stroke.stops),
-  }
+  return { stroke: undefined, strokeEnabled: false }
 }
 
 // Splits an 8-digit hex (#RRGGBBAA) into its 6-digit color and an opacity in

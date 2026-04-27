@@ -1,12 +1,13 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { Rect, Ellipse, Line, Text, Image as KonvaImage, Path, Group } from 'react-konva'
 import type Konva from 'konva'
-import type { CanvasNode, IconNode } from '@/canvas/types'
+import type { CanvasNode, IconNode, RadialFill } from '@/canvas/types'
 import { useCanvasStore } from '@/state/canvas-store'
 import { loadIconImage, loadIconImageWithGradient } from '@/icons/icon-svg'
 import { scalePath } from '@/composition/paper-bridge'
 import { polygonPoints, starPoints } from '@/composition/to-path'
 import { fillKonvaProps, fillSolidColor, scaleFill, strokeKonvaProps } from '@/composition/fills'
+import { computeStrokeOutlinePathData } from '@/composition/stroke-outline'
 
 type Props = {
   node: CanvasNode
@@ -86,7 +87,8 @@ export function NodeRenderer({
   }
 
   if (node.type === 'rect') {
-    return (
+    return wrapRadialStroke(
+      node,
       <Rect
         {...commonProps}
         {...fillKonvaProps(node.fill)}
@@ -96,12 +98,13 @@ export function NodeRenderer({
         strokeWidth={node.stroke ? node.strokeWidth : 0}
         lineJoin={node.strokeJoin ?? 'miter'}
         cornerRadius={node.cornerRadius}
-      />
+      />,
     )
   }
 
   if (node.type === 'ellipse') {
-    return (
+    return wrapRadialStroke(
+      node,
       <Ellipse
         {...commonProps}
         {...fillKonvaProps(node.fill)}
@@ -109,12 +112,13 @@ export function NodeRenderer({
         radiusY={node.radiusY}
         {...strokeKonvaProps(node.stroke)}
         strokeWidth={node.stroke ? node.strokeWidth : 0}
-      />
+      />,
     )
   }
 
   if (node.type === 'line') {
-    return (
+    return wrapRadialStroke(
+      node,
       <Line
         {...commonProps}
         points={node.points}
@@ -123,7 +127,7 @@ export function NodeRenderer({
         lineCap={node.strokeCap ?? 'butt'}
         lineJoin={node.strokeJoin ?? 'miter'}
         hitStrokeWidth={Math.max(12, node.strokeWidth)}
-      />
+      />,
     )
   }
 
@@ -154,7 +158,8 @@ export function NodeRenderer({
   }
 
   if (node.type === 'path') {
-    return (
+    return wrapRadialStroke(
+      node,
       <Path
         {...commonProps}
         {...fillKonvaProps(node.fill)}
@@ -165,7 +170,7 @@ export function NodeRenderer({
         lineJoin={node.strokeJoin ?? 'miter'}
         onDblClick={() => useCanvasStore.getState().enterPathEdit(node.id)}
         onDblTap={() => useCanvasStore.getState().enterPathEdit(node.id)}
-      />
+      />,
     )
   }
 
@@ -182,7 +187,8 @@ export function NodeRenderer({
           onDblClick: () => onEnterBoolean?.(node.id),
           onDblTap: () => onEnterBoolean?.(node.id),
         }
-    return (
+    return wrapRadialStroke(
+      node,
       <Path
         {...commonProps}
         {...fillKonvaProps(node.fill)}
@@ -191,7 +197,8 @@ export function NodeRenderer({
         {...strokeKonvaProps(node.stroke)}
         strokeWidth={node.stroke ? node.strokeWidth : 0}
         lineJoin={node.strokeJoin ?? 'miter'}
-      />
+      />,
+      ghosted,
     )
   }
 
@@ -206,7 +213,8 @@ function PolygonKonva({
   commonProps: Record<string, unknown>
 }) {
   const points = useMemo(() => polygonPoints(node.sides, node.radius), [node.sides, node.radius])
-  return (
+  return wrapRadialStroke(
+    node,
     <Line
       {...(commonProps as object)}
       {...fillKonvaProps(node.fill)}
@@ -215,7 +223,7 @@ function PolygonKonva({
       {...strokeKonvaProps(node.stroke)}
       strokeWidth={node.stroke ? node.strokeWidth : 0}
       lineJoin={node.strokeJoin ?? 'miter'}
-    />
+    />,
   )
 }
 
@@ -230,7 +238,8 @@ function StarKonva({
     () => starPoints(node.points, node.outerRadius, node.innerRadius),
     [node.points, node.outerRadius, node.innerRadius],
   )
-  return (
+  return wrapRadialStroke(
+    node,
     <Line
       {...(commonProps as object)}
       {...fillKonvaProps(node.fill)}
@@ -239,7 +248,7 @@ function StarKonva({
       {...strokeKonvaProps(node.stroke)}
       strokeWidth={node.stroke ? node.strokeWidth : 0}
       lineJoin={node.strokeJoin ?? 'miter'}
-    />
+    />,
   )
 }
 
@@ -289,6 +298,58 @@ function IconKonva({
       image={image ?? undefined}
       width={node.width}
       height={node.height}
+    />
+  )
+}
+
+// Konva 10.2.5 has no `_strokeRadialGradient` — radial stroke props on a
+// shape are silently dropped. Workaround: render an extra Konva.Path whose
+// data is the expanded stroke outline, filled with the radial gradient.
+// `strokeKonvaProps` already disables the native stroke for radial fills,
+// so the main shape draws no stroke and the overlay is the only thing
+// the user sees in that region.
+function wrapRadialStroke(
+  node: CanvasNode,
+  shape: ReactNode,
+  ghosted?: boolean,
+): ReactNode {
+  if (!('stroke' in node) || !node.stroke || node.stroke.type !== 'radial') {
+    return shape
+  }
+  return (
+    <>
+      {shape}
+      <RadialStrokeOverlay node={node} stroke={node.stroke} ghosted={!!ghosted} />
+    </>
+  )
+}
+
+function RadialStrokeOverlay({
+  node,
+  stroke,
+  ghosted,
+}: {
+  node: CanvasNode
+  stroke: RadialFill
+  ghosted: boolean
+}) {
+  // Recompute when the node identity changes — zustand creates new node
+  // references on every store update, so this re-runs only on real changes.
+  // expandStroke (paper.js) is non-trivial; a more granular dep array per
+  // node type is a future optimization if profiling demands it.
+  const data = useMemo(() => computeStrokeOutlinePathData(node), [node])
+  if (!data) return null
+  const opacity = ghosted ? node.opacity * 0.4 : node.opacity
+  return (
+    <Path
+      x={node.x}
+      y={node.y}
+      rotation={node.rotation}
+      opacity={opacity}
+      globalCompositeOperation={node.blendMode ?? 'source-over'}
+      data={data}
+      {...fillKonvaProps(stroke)}
+      listening={false}
     />
   )
 }
