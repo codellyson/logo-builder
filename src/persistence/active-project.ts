@@ -26,7 +26,11 @@ export function setActiveProjectId(id: string | null): void {
 
 // Returns the active project record, or null if no active id is set, the
 // record doesn't exist, or its snapshot is at an incompatible schema
-// version. Does not create anything — see ensureActiveProject.
+// version. Compatible-but-older snapshots (currently v4 → v5) are
+// auto-upgraded in place: we rewrite the version field and persist. This
+// is safe when the schema bump is purely additive (a new node variant)
+// and existing nodes deserialize unchanged. Does not create anything —
+// see ensureActiveProject.
 export async function loadActiveProject(): Promise<ProjectRecord | null> {
   const id = getActiveProjectId()
   if (!id) return null
@@ -35,13 +39,38 @@ export async function loadActiveProject(): Promise<ProjectRecord | null> {
     setActiveProjectId(null)
     return null
   }
-  if (rec.snapshot.version !== SCHEMA_VERSION) {
+  const upgraded = await maybeUpgradeSnapshot(rec)
+  if (!upgraded) {
     console.warn(
       `[logo-builder] active project "${rec.name}" is at schema v${rec.snapshot.version}; current is v${SCHEMA_VERSION}. Falling through.`,
     )
     return null
   }
-  return rec
+  return upgraded
+}
+
+// Upgrades a project record's snapshot in place if the bump is non-breaking,
+// or returns null if the snapshot is at a schema we can't load.
+//
+// Non-breaking history:
+//  - v4 → v5: added 'asset' node variant. v4 records simply have no assets.
+//  - v5 → v6: added optional `effects` field on NodeBase. v5 records have
+//    no effects, which loads as `undefined` and renders identically.
+//
+// Both upgrades just rewrite the version field; no shape migration needed.
+async function maybeUpgradeSnapshot(rec: ProjectRecord): Promise<ProjectRecord | null> {
+  const v = rec.snapshot.version
+  if (v === SCHEMA_VERSION) return rec
+  if (isLoadableVersion(v)) {
+    const upgraded: ProjectRecord = {
+      ...rec,
+      updatedAt: Date.now(),
+      snapshot: { ...rec.snapshot, version: SCHEMA_VERSION },
+    }
+    await db.projects.put(upgraded)
+    return upgraded
+  }
+  return null
 }
 
 // Always returns a valid active project. Order of preference:
@@ -63,16 +92,26 @@ export async function ensureActiveProject(): Promise<ProjectRecord> {
     return recovered
   }
 
+  // Most-recent project at a loadable schema (current OR auto-upgradeable).
+  // Activating it routes through loadActiveProject, which performs the
+  // upgrade if needed.
   const all = await db.projects.orderBy('updatedAt').reverse().toArray()
-  const compat = all.find((p) => p.snapshot.version === SCHEMA_VERSION)
-  if (compat) {
-    setActiveProjectId(compat.id)
-    return compat
+  const candidate = all.find((p) => isLoadableVersion(p.snapshot.version))
+  if (candidate) {
+    setActiveProjectId(candidate.id)
+    const loaded = await loadActiveProject()
+    if (loaded) return loaded
   }
 
   const fresh = await createEmptyProject('Untitled')
   setActiveProjectId(fresh.id)
   return fresh
+}
+
+function isLoadableVersion(v: number): boolean {
+  // Mirrors maybeUpgradeSnapshot's accepted set: the current version, plus
+  // any version we know how to migrate forward in place.
+  return v === SCHEMA_VERSION || v === 4 || v === 5
 }
 
 export async function createEmptyProject(name: string): Promise<ProjectRecord> {

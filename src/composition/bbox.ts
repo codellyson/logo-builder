@@ -72,6 +72,8 @@ export function getNodeBbox(node: CanvasNode): Bbox | null {
         node.rotation,
       )
     }
+    case 'asset':
+      return boxWithRotation(node.x, node.y, 0, 0, node.width, node.height, node.rotation)
     case 'group':
       return null
   }
@@ -151,6 +153,8 @@ export function getNodeLocalBbox(node: CanvasNode): Bbox | null {
       if (!node.cache || node.cache.width === 0 || node.cache.height === 0) return null
       return { x: 0, y: 0, width: node.cache.width, height: node.cache.height }
     }
+    case 'asset':
+      return { x: 0, y: 0, width: node.width, height: node.height }
     case 'line':
     case 'group':
       return null

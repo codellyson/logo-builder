@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { Rect, Ellipse, Line, Text, Image as KonvaImage, Path, Group } from 'react-konva'
 import type Konva from 'konva'
-import type { CanvasNode, IconNode, RadialFill } from '@/canvas/types'
+import type { AssetNode, CanvasNode, Effect, IconNode, RadialFill } from '@/canvas/types'
+import { getAsset } from '@/persistence/assets'
 import { useCanvasStore } from '@/state/canvas-store'
 import { loadIconImage, loadIconImageWithGradient } from '@/icons/icon-svg'
 import { scalePath } from '@/composition/paper-bridge'
@@ -17,6 +18,47 @@ type Props = {
   onStartTextEdit: (id: string) => void
   onEnterBoolean?: (id: string) => void
   ghosted?: boolean
+}
+
+type ShadowProps = {
+  shadowEnabled?: boolean
+  shadowColor?: string
+  shadowBlur?: number
+  shadowOffsetX?: number
+  shadowOffsetY?: number
+  shadowOpacity?: number
+}
+
+// Konva renders one shadow per shape, so when multiple shadow-like effects
+// are stacked we pick the topmost enabled one (last in the array). The
+// missing ones still round-trip through SVG export — see effects.md.
+function shadowPropsFromEffects(effects: Effect[] | undefined): ShadowProps {
+  if (!effects || effects.length === 0) return {}
+  for (let i = effects.length - 1; i >= 0; i--) {
+    const eff = effects[i]
+    if (!eff.enabled) continue
+    if (eff.type === 'drop-shadow') {
+      return {
+        shadowEnabled: true,
+        shadowColor: eff.color,
+        shadowBlur: eff.blur,
+        shadowOffsetX: eff.offsetX,
+        shadowOffsetY: eff.offsetY,
+        shadowOpacity: eff.opacity,
+      }
+    }
+    if (eff.type === 'outer-glow') {
+      return {
+        shadowEnabled: true,
+        shadowColor: eff.color,
+        shadowBlur: eff.blur,
+        shadowOffsetX: 0,
+        shadowOffsetY: 0,
+        shadowOpacity: eff.opacity,
+      }
+    }
+  }
+  return {}
 }
 
 export function NodeRenderer({
@@ -43,6 +85,7 @@ export function NodeRenderer({
     opacity: node.opacity,
     visible: !editing,
     globalCompositeOperation: node.blendMode ?? 'source-over',
+    ...shadowPropsFromEffects(node.effects),
     draggable:
       !node.locked &&
       useCanvasStore.getState().toolMode !== 'pen' &&
@@ -202,6 +245,10 @@ export function NodeRenderer({
     )
   }
 
+  if (node.type === 'asset') {
+    return <AssetKonva node={node} commonProps={commonProps} />
+  }
+
   return <IconKonva node={node} commonProps={commonProps} />
 }
 
@@ -291,6 +338,72 @@ function IconKonva({
     // fillKey carries the gradient/solid identity for the dep array.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [node.iconName, fillKey, node.width, node.height])
+
+  return (
+    <KonvaImage
+      {...(commonProps as object)}
+      image={image ?? undefined}
+      width={node.width}
+      height={node.height}
+    />
+  )
+}
+
+// Renders a user-uploaded asset (raster or embedded SVG). Loads the
+// asset's Blob from IndexedDB via createObjectURL and binds it to a
+// Konva.Image; revokes the URL on unmount or assetId change. Missing
+// assets (deleted while a node still references them) render a placeholder
+// so the canvas doesn't crash and the user gets a visual cue.
+function AssetKonva({
+  node,
+  commonProps,
+}: {
+  node: AssetNode
+  commonProps: Record<string, unknown>
+}) {
+  const [image, setImage] = useState<HTMLImageElement | null>(null)
+  const [missing, setMissing] = useState(false)
+
+  useEffect(() => {
+    let cancelled = false
+    let url: string | null = null
+    setImage(null)
+    setMissing(false)
+    void getAsset(node.assetId).then((rec) => {
+      if (cancelled) return
+      if (!rec) {
+        setMissing(true)
+        return
+      }
+      url = URL.createObjectURL(rec.blob)
+      const img = new Image()
+      img.onload = () => {
+        if (!cancelled) setImage(img)
+      }
+      img.onerror = () => {
+        if (!cancelled) setMissing(true)
+      }
+      img.src = url
+    })
+    return () => {
+      cancelled = true
+      if (url) URL.revokeObjectURL(url)
+    }
+  }, [node.assetId])
+
+  if (missing) {
+    return (
+      <Rect
+        {...(commonProps as object)}
+        width={node.width}
+        height={node.height}
+        fill="#1f1f23"
+        stroke="#4b5563"
+        strokeWidth={1}
+        dash={[4, 4]}
+      />
+    )
+  }
 
   return (
     <KonvaImage
@@ -440,6 +553,14 @@ function bakeScale(node: CanvasNode, scaleX: number, scaleY: number, target: Kon
       innerRadius: Math.max(1, node.innerRadius * avg),
       fill: scaleFill(node.fill, avg, avg) ?? node.fill,
       stroke: scaleFill(node.stroke, avg, avg),
+    })
+  } else if (node.type === 'asset') {
+    update(node.id, {
+      x,
+      y,
+      rotation,
+      width: Math.max(1, node.width * scaleX),
+      height: Math.max(1, node.height * scaleY),
     })
   } else if (node.type === 'group') {
     update(node.id, { x, y, rotation })

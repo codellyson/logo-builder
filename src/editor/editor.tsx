@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { EditorHeader } from '@/editor/header'
-import { LayersPanel } from '@/editor/layers-panel'
+import { LeftSidebar } from '@/editor/left-sidebar'
 import { PropertiesPanel } from '@/editor/properties-panel'
 import { Toolbar } from '@/editor/toolbar'
 import { CompositionToolbar } from '@/editor/composition-toolbar'
@@ -16,6 +16,7 @@ import { EmptyState } from '@/editor/empty-state'
 import { useAutosave, restoreActiveProjectOnMount } from '@/state/autosave'
 import { useCanvasStore } from '@/state/canvas-store'
 import { startBooleanEvalRunner } from '@/composition/boolean-eval-runner'
+import { bootCustomFonts } from '@/fonts/custom-fonts'
 
 export function Editor() {
   const [exportOpen, setExportOpen] = useState(false)
@@ -29,10 +30,11 @@ export function Editor() {
   // Boot the active project before rendering the editor surface so the
   // canvas mounts onto a fully-restored store. The autosave subscription
   // above only fires on actual changes, so this initial replaceState
-  // doesn't trigger a redundant write.
+  // doesn't trigger a redundant write. Custom fonts are registered in
+  // parallel — text layers using them render correctly on first paint.
   useEffect(() => {
     let cancelled = false
-    void restoreActiveProjectOnMount().then(() => {
+    void Promise.all([restoreActiveProjectOnMount(), bootCustomFonts()]).then(() => {
       if (!cancelled) setBootReady(true)
     })
     return () => {
@@ -62,7 +64,7 @@ export function Editor() {
       {helpOpen && <ShortcutsModal onClose={() => setHelpOpen(false)} />}
       <div className="flex flex-1 overflow-hidden">
         <aside className="w-64 shrink-0 border-r border-neutral-800 bg-neutral-950">
-          <LayersPanel />
+          <LeftSidebar />
         </aside>
         <main className="relative flex-1 overflow-hidden bg-neutral-900">
           <EditorCanvas />

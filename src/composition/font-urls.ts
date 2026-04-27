@@ -45,6 +45,13 @@ export const FONT_FILE_URLS: Record<string, Partial<Record<400 | 700, string>>> 
   'JetBrains Mono': { 400: jetR, 700: jetB },
 }
 
+import { customFontUrl } from '@/fonts/custom-fonts'
+
+// Custom fonts ignore weight (we only register one weight per family in v1)
+// and take precedence over bundled URLs so users can shadow a bundled
+// family by uploading their own file with the same name.
 export function fontFileUrl(family: string, weight: 400 | 700): string | null {
+  const custom = customFontUrl(family)
+  if (custom) return custom
   return FONT_FILE_URLS[family]?.[weight] ?? null
 }

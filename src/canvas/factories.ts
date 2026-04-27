@@ -1,4 +1,5 @@
 import type {
+  AssetNode,
   CanvasNode,
   EllipseNode,
   IconNode,
@@ -8,6 +9,7 @@ import type {
   StarNode,
   TextNode,
 } from '@/canvas/types'
+import type { AssetRecord } from '@/persistence/db'
 import { solidFill } from '@/composition/fills'
 import { newId } from '@/lib/id'
 
@@ -109,6 +111,29 @@ export function createTriangle(cx: number, cy: number): PolygonNode {
     name: 'Triangle',
     sides: 3,
     radius: 92, // slightly larger so the visual area matches rect/ellipse defaults
+  }
+}
+
+// Places an asset node centered at (cx, cy), sized to the asset's intrinsic
+// dimensions. Caps the longer dimension so a 4000×4000 import doesn't
+// dominate the artboard — the user can always scale up via the
+// Transformer afterward.
+export function createAsset(cx: number, cy: number, asset: AssetRecord): AssetNode {
+  const MAX_DIM = 320
+  let width = asset.width
+  let height = asset.height
+  const maxDim = Math.max(width, height)
+  if (maxDim > MAX_DIM) {
+    const k = MAX_DIM / maxDim
+    width *= k
+    height *= k
+  }
+  return {
+    ...base(asset.name || 'Asset', cx - width / 2, cy - height / 2),
+    type: 'asset',
+    assetId: asset.id,
+    width,
+    height,
   }
 }
 

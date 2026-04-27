@@ -1,8 +1,9 @@
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react'
-import { Stage, Layer, Rect } from 'react-konva'
+import { Stage, Layer, Rect, Group } from 'react-konva'
 import type Konva from 'konva'
 import { useCanvasStore } from '@/state/canvas-store'
 import { NodeRenderer } from '@/canvas/nodes'
+import { MaybeBlur } from '@/canvas/effects-render'
 import { CanvasTransformer } from '@/canvas/transformer'
 import { Marquee, intersects } from '@/canvas/marquee'
 import { TextEditor } from '@/canvas/text-editor'
@@ -13,6 +14,9 @@ import { GradientHandleOverlay } from '@/canvas/gradient-handle-overlay'
 import { computeSnap, type Bbox, type SnapGuide } from '@/composition/alignment'
 import { constrainToAxis } from '@/composition/geom'
 import { FONTS_LOADED_EVENT } from '@/fonts/preload'
+import { AssetImportError, createAsset as importAsset } from '@/persistence/assets'
+import { createAsset as makeAssetNode } from '@/canvas/factories'
+import { registerCustomFont } from '@/fonts/custom-fonts'
 import type { CanvasNode, TextNode } from '@/canvas/types'
 
 const MIN_SCALE = 0.1
@@ -53,6 +57,8 @@ export function EditorCanvas() {
     scaleX: number
     scaleY: number
   } | null>(null)
+  const [fileDragOver, setFileDragOver] = useState(false)
+  const [dropError, setDropError] = useState<string | null>(null)
   const lastFitId = useRef(-1)
 
   const nodes = useCanvasStore((s) => s.nodes)
@@ -71,6 +77,7 @@ export function EditorCanvas() {
   const toggleSelect = useCanvasStore((s) => s.toggleSelect)
   const clearSelection = useCanvasStore((s) => s.clearSelection)
   const setEditingBooleanId = useCanvasStore((s) => s.setEditingBooleanId)
+  const addNode = useCanvasStore((s) => s.addNode)
   const penBeginAnchor = useCanvasStore((s) => s.penBeginAnchor)
   const penUpdatePendingHandle = useCanvasStore((s) => s.penUpdatePendingHandle)
   const penFinalizePending = useCanvasStore((s) => s.penFinalizePending)
@@ -392,16 +399,17 @@ export function EditorCanvas() {
     const childNodes = childrenOf.get(node.id)
     if (node.type === 'group') {
       return (
-        <NodeRenderer
-          key={node.id}
-          node={node}
-          editing={false}
-          onSelect={handleSelectNode}
-          onStartTextEdit={setEditingTextId}
-          onEnterBoolean={setEditingBooleanId}
-        >
-          {childNodes?.map(renderTree)}
-        </NodeRenderer>
+        <MaybeBlur key={node.id} node={node}>
+          <NodeRenderer
+            node={node}
+            editing={false}
+            onSelect={handleSelectNode}
+            onStartTextEdit={setEditingTextId}
+            onEnterBoolean={setEditingBooleanId}
+          >
+            {childNodes?.map(renderTree)}
+          </NodeRenderer>
+        </MaybeBlur>
       )
     }
     if (node.type === 'boolean' && editingBooleanId === node.id) {
@@ -422,21 +430,78 @@ export function EditorCanvas() {
       )
     }
     return (
-      <NodeRenderer
-        key={node.id}
-        node={node}
-        editing={editingTextId === node.id}
-        onSelect={handleSelectNode}
-        onStartTextEdit={setEditingTextId}
-        onEnterBoolean={setEditingBooleanId}
-      />
+      <MaybeBlur key={node.id} node={node}>
+        <NodeRenderer
+          node={node}
+          editing={editingTextId === node.id}
+          onSelect={handleSelectNode}
+          onStartTextEdit={setEditingTextId}
+          onEnterBoolean={setEditingBooleanId}
+        />
+      </MaybeBlur>
     )
   }
 
   const topLevelNodes = useMemo(() => nodes.filter((n) => !n.parentId), [nodes])
 
+  // Drop a file directly onto the canvas. Imports the asset and places it
+  // centered at the drop point. Fonts get registered so they're picker-
+  // ready immediately even though they don't produce a canvas node.
+  const handleFileDrop = async (e: React.DragEvent) => {
+    e.preventDefault()
+    setFileDragOver(false)
+    const files = Array.from(e.dataTransfer.files)
+    if (files.length === 0) return
+    const stage = stageRef.current
+    const rect = containerRef.current?.getBoundingClientRect()
+    if (!stage || !rect) return
+    // Convert client → stage coords via the viewport transform.
+    const stageX = (e.clientX - rect.left - viewport.x) / viewport.scale
+    const stageY = (e.clientY - rect.top - viewport.y) / viewport.scale
+    setDropError(null)
+    let firstError: string | null = null
+    for (const file of files) {
+      try {
+        const record = await importAsset(file)
+        if (record.kind === 'font') {
+          await registerCustomFont(record)
+          continue
+        }
+        addNode(makeAssetNode(stageX, stageY, record))
+      } catch (err) {
+        const msg =
+          err instanceof AssetImportError
+            ? `${file.name}: ${err.message}`
+            : `${file.name}: import failed`
+        if (!firstError) firstError = msg
+      }
+    }
+    if (firstError) setDropError(firstError)
+  }
+
   return (
-    <div ref={containerRef} className="relative h-full w-full overflow-hidden">
+    <div
+      ref={containerRef}
+      className="relative h-full w-full overflow-hidden"
+      onDragEnter={(e) => {
+        if (Array.from(e.dataTransfer.types).includes('Files')) {
+          e.preventDefault()
+          setFileDragOver(true)
+        }
+      }}
+      onDragOver={(e) => {
+        if (Array.from(e.dataTransfer.types).includes('Files')) {
+          e.preventDefault()
+          setFileDragOver(true)
+        }
+      }}
+      onDragLeave={(e) => {
+        if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+          setFileDragOver(false)
+        }
+      }}
+      onDrop={handleFileDrop}
+    >
       {size.width > 0 && size.height > 0 && (
         <Stage
           ref={stageRef}
@@ -477,9 +542,28 @@ export function EditorCanvas() {
             )}
             {toolMode === 'edit-path' && pathEditState && (() => {
               const n = nodes.find((x) => x.id === pathEditState.nodeId)
-              return n && n.type === 'path' ? (
-                <PathEditOverlay node={n} scale={viewport.scale} />
-              ) : null
+              if (!n || n.type !== 'path') return null
+              // Walk the parent chain so the overlay nests inside the same
+              // group transforms as the original path. Without this, a path
+              // edited from inside a group renders at world (node.x, node.y)
+              // — but those coords are group-local, so the overlay vanishes
+              // off-position relative to what the user clicked.
+              const ancestors: CanvasNode[] = []
+              let p: CanvasNode | undefined = n.parentId
+                ? nodes.find((x) => x.id === n.parentId)
+                : undefined
+              while (p) {
+                ancestors.unshift(p)
+                p = p.parentId ? nodes.find((x) => x.id === p!.parentId) : undefined
+              }
+              return ancestors.reduceRight<React.ReactNode>(
+                (inner, anc) => (
+                  <Group key={anc.id} x={anc.x} y={anc.y} rotation={anc.rotation}>
+                    {inner}
+                  </Group>
+                ),
+                <PathEditOverlay node={n} scale={viewport.scale} />,
+              )
             })()}
             {/* Gradient handles — visible when a single node with a linear
                 or radial fill is selected and we're in plain select mode
@@ -512,6 +596,25 @@ export function EditorCanvas() {
           stage={stageRef.current}
           onClose={() => setEditingTextId(null)}
         />
+      )}
+      {fileDragOver && (
+        <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-indigo-500/5 outline-dashed outline-2 -outline-offset-8 outline-indigo-400/60">
+          <div className="rounded-md bg-neutral-950/80 px-3 py-1.5 text-xs text-indigo-200 backdrop-blur">
+            Drop to import
+          </div>
+        </div>
+      )}
+      {dropError && (
+        <div className="absolute left-1/2 top-3 -translate-x-1/2 rounded border border-red-500/40 bg-red-500/10 px-3 py-1.5 text-xs text-red-300 backdrop-blur">
+          <span>{dropError}</span>
+          <button
+            type="button"
+            onClick={() => setDropError(null)}
+            className="ml-3 text-red-300/70 hover:text-red-200"
+          >
+            ×
+          </button>
+        </div>
       )}
     </div>
   )

@@ -6,6 +6,7 @@ import {
   type SegmentStyle,
 } from '@/composition/path-edit-ops'
 import type {
+  AssetNode,
   BlendMode,
   BooleanNode,
   BooleanOp,
@@ -41,8 +42,17 @@ import { ColorPicker } from '@/colors/color-picker'
 import { FontPicker } from '@/fonts/font-picker'
 import { IconPicker } from '@/icons/icon-picker'
 import { FillEditor } from '@/editor/properties/fill-editor'
+import { EffectsSection } from '@/editor/properties/effects-section'
 import { getNodeLocalBbox } from '@/composition/bbox'
 import { FieldRow, NumberField, Segmented, Slider01, TextField, TextAreaField } from '@/ui/fields'
+import { useEffect, useState } from 'react'
+import { Icon } from '@iconify/react'
+import { getAsset } from '@/persistence/assets'
+import type { AssetRecord } from '@/persistence/db'
+import { svgAssetToPaths } from '@/composition/svg-asset-to-path'
+import { solidFill } from '@/composition/fills'
+import { newId } from '@/lib/id'
+import type { GroupNode } from '@/canvas/types'
 
 export function PropertiesPanel() {
   const nodes = useCanvasStore((s) => s.nodes)
@@ -142,10 +152,12 @@ function SingleEditor({ node }: { node: CanvasNode }) {
       {node.type === 'line' && <LineFields node={node} />}
       {node.type === 'text' && <TextFields node={node} />}
       {node.type === 'icon' && <IconFields node={node} />}
+      {node.type === 'asset' && <AssetFields node={node} />}
       {node.type === 'path' && <PathFields node={node} />}
       {node.type === 'polygon' && <PolygonFields node={node} />}
       {node.type === 'star' && <StarFields node={node} />}
       {node.type === 'boolean' && <BooleanFields node={node} />}
+      <EffectsSection node={node} />
     </div>
   )
 }
@@ -740,6 +752,168 @@ function IconFields({ node }: { node: IconNode }) {
           <NumberField value={node.height} min={8} onCommit={(n) => update(node.id, { height: n })} />
         </FieldRow>
       </div>
+    </div>
+  )
+}
+
+function AssetFields({ node }: { node: AssetNode }) {
+  const update = useCanvasStore((s) => s.updateNode)
+  const replaceNode = useCanvasStore((s) => s.replaceNode)
+  const [asset, setAsset] = useState<AssetRecord | null>(null)
+  const [missing, setMissing] = useState(false)
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    let cancelled = false
+    setAsset(null)
+    setMissing(false)
+    getAsset(node.assetId).then((a) => {
+      if (cancelled) return
+      if (a) setAsset(a)
+      else setMissing(true)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [node.assetId])
+
+  const onConvert = async () => {
+    if (!asset || asset.kind !== 'svg') return
+    setBusy(true)
+    setError(null)
+    try {
+      const text = await asset.blob.text()
+      const leaves = svgAssetToPaths(text, node.width, node.height)
+      if (!leaves) {
+        setError('SVG could not be flattened to a path.')
+        setBusy(false)
+        return
+      }
+      // Single-leaf SVGs become one PathNode, sized to the AssetNode's
+      // frame so position / rotation transfer cleanly. Multi-leaf SVGs
+      // become a Group wrapping one PathNode per source element — the
+      // user can grab pieces independently or ungroup to separate them.
+      if (leaves.length === 1) {
+        const leaf = leaves[0]
+        const path: PathNode = {
+          id: newId(),
+          type: 'path',
+          name: asset.name || 'Path',
+          locked: node.locked,
+          hidden: node.hidden,
+          x: node.x,
+          y: node.y,
+          rotation: node.rotation,
+          opacity: node.opacity,
+          blendMode: node.blendMode,
+          data: leaf.data,
+          fill: solidFill(leaf.fill ?? '#0a0a0a'),
+          stroke: null,
+          strokeWidth: 0,
+          width: leaf.width,
+          height: leaf.height,
+        }
+        replaceNode(node.id, path)
+      } else {
+        const group: GroupNode = {
+          id: newId(),
+          type: 'group',
+          name: asset.name || 'Group',
+          locked: node.locked,
+          hidden: node.hidden,
+          x: node.x,
+          y: node.y,
+          rotation: node.rotation,
+          opacity: node.opacity,
+          blendMode: node.blendMode,
+          parentId: node.parentId,
+          collapsed: false,
+        }
+        const children: PathNode[] = leaves.map((leaf) => ({
+          id: newId(),
+          type: 'path',
+          name: 'Path',
+          locked: false,
+          hidden: false,
+          x: leaf.x,
+          y: leaf.y,
+          rotation: 0,
+          opacity: 1,
+          parentId: group.id,
+          data: leaf.data,
+          fill: solidFill(leaf.fill ?? '#0a0a0a'),
+          stroke: null,
+          strokeWidth: 0,
+          width: leaf.width,
+          height: leaf.height,
+        }))
+        // Children must precede their group container in the nodes array
+        // (canvas-store z-order convention).
+        replaceNode(node.id, [...children, group])
+      }
+    } catch {
+      setError('Failed to read SVG asset.')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <div className="space-y-2 border-t border-neutral-800 pt-3">
+      <div className="flex items-center justify-between text-[11px] text-neutral-500">
+        <span className="truncate">
+          {asset ? asset.name : missing ? 'Missing asset' : 'Loading…'}
+        </span>
+        {asset && (
+          <span className="ml-2 shrink-0 uppercase tracking-wider">
+            {asset.kind}
+          </span>
+        )}
+      </div>
+      {missing && (
+        <div className="rounded border border-amber-500/30 bg-amber-500/10 px-2 py-1.5 text-[11px] text-amber-300">
+          Asset is missing. Reimport or delete this layer.
+        </div>
+      )}
+      <div className="grid grid-cols-2 gap-2">
+        <FieldRow label="Width">
+          <NumberField
+            value={node.width}
+            min={1}
+            onCommit={(n) => update(node.id, { width: n })}
+          />
+        </FieldRow>
+        <FieldRow label="Height">
+          <NumberField
+            value={node.height}
+            min={1}
+            onCommit={(n) => update(node.id, { height: n })}
+          />
+        </FieldRow>
+      </div>
+      {asset?.kind === 'svg' && (
+        <>
+          <button
+            type="button"
+            onClick={onConvert}
+            disabled={busy}
+            className="flex w-full items-center justify-center gap-1.5 rounded bg-indigo-500 px-2 py-1.5 text-[11px] font-medium text-white hover:bg-indigo-400 disabled:opacity-50"
+          >
+            <Icon icon="lucide:spline" width={12} height={12} />
+            {busy ? 'Converting…' : 'Convert to editable path'}
+          </button>
+          <div className="rounded border border-neutral-800 bg-neutral-900/50 px-2 py-1.5 text-[10px] text-neutral-500">
+            Each path becomes its own editable layer (grouped). Strokes,
+            gradients, and effects from the source aren't preserved.
+          </div>
+        </>
+      )}
+      {error && (
+        <div className="rounded border border-red-500/40 bg-red-500/10 px-2 py-1.5 text-[11px] text-red-300">
+          {error}
+        </div>
+      )}
     </div>
   )
 }

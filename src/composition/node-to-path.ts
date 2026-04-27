@@ -144,6 +144,15 @@ async function toLocalPath(
     return withStrokeFromFill(node, fill)
   }
 
+  if (node.type === 'asset') {
+    // Assets contribute their bbox rectangle to vector geometry — booleans
+    // can't see inside a raster, and parsing the SVG asset blob synchronously
+    // would block the boolean evaluator. The user can phase 4's "Convert to
+    // editable" to get a real path before unioning / subtracting.
+    const data = `M0 0H${node.width}V${node.height}H0Z`
+    return new paper.CompoundPath({ pathData: data, insert: false })
+  }
+
   return null
 }
 

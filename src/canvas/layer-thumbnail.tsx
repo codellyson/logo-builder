@@ -1,6 +1,29 @@
 import { useEffect, useState } from 'react'
-import type { CanvasNode } from '@/canvas/types'
+import type { CanvasNode, Effect } from '@/canvas/types'
 import { serializeSvg } from '@/export/svg-serializer'
+
+// Conservative reach of a single effect in node-local px. Gaussian blur
+// covers ~99.7% of energy within 3σ, so blur of radius r reaches ~3r past
+// the geometry edge. Drop-shadow adds the offset on top.
+function effectReach(eff: Effect): number {
+  if (!eff.enabled) return 0
+  if (eff.type === 'blur') return eff.radius * 3
+  if (eff.type === 'outer-glow') return eff.blur * 3
+  if (eff.type === 'drop-shadow') {
+    return eff.blur * 3 + Math.max(Math.abs(eff.offsetX), Math.abs(eff.offsetY))
+  }
+  return 0
+}
+
+function maxEffectReach(effects: Effect[] | undefined): number {
+  if (!effects || effects.length === 0) return 0
+  let maxReach = 0
+  for (const eff of effects) {
+    const r = effectReach(eff)
+    if (r > maxReach) maxReach = r
+  }
+  return maxReach
+}
 
 type Props = {
   node: CanvasNode
@@ -59,12 +82,13 @@ export function LayerThumbnail({ node, size = 24 }: Props) {
     }
     let cancelled = false
     const bbox = getNodeLocalBbox(node)
-    const w = Math.max(1, bbox.width)
-    const h = Math.max(1, bbox.height)
+    const pad = maxEffectReach(node.effects)
+    const w = Math.max(1, bbox.width + pad * 2)
+    const h = Math.max(1, bbox.height + pad * 2)
     const temp: CanvasNode = {
       ...node,
-      x: -bbox.x,
-      y: -bbox.y,
+      x: -bbox.x + pad,
+      y: -bbox.y + pad,
       rotation: 0,
       blendMode: undefined,
       opacity: 1,

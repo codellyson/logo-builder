@@ -1,4 +1,4 @@
-export type NodeType = 'rect' | 'ellipse' | 'line' | 'text' | 'icon' | 'path' | 'group' | 'boolean' | 'polygon' | 'star'
+export type NodeType = 'rect' | 'ellipse' | 'line' | 'text' | 'icon' | 'path' | 'group' | 'boolean' | 'polygon' | 'star' | 'asset'
 
 export type BooleanOp = 'unite' | 'subtract' | 'intersect' | 'exclude'
 
@@ -56,6 +56,38 @@ export type BlendMode =
   | 'color'
   | 'luminosity'
 
+// Visual effects applied on top of a node's geometry. Effects render in
+// array order: effects[0] is innermost, effects[length-1] outermost.
+// Multiple shadow-like effects can stack in SVG export, but Konva is
+// single-shadow-per-shape so the canvas preview shows the topmost one.
+export type DropShadowEffect = {
+  type: 'drop-shadow'
+  enabled: boolean
+  offsetX: number
+  offsetY: number
+  blur: number
+  color: string
+  opacity: number
+}
+
+export type OuterGlowEffect = {
+  type: 'outer-glow'
+  enabled: boolean
+  blur: number
+  color: string
+  opacity: number
+}
+
+export type BlurEffect = {
+  type: 'blur'
+  enabled: boolean
+  radius: number
+}
+
+export type Effect = DropShadowEffect | OuterGlowEffect | BlurEffect
+
+export type EffectType = Effect['type']
+
 type NodeBase = {
   id: string
   type: NodeType
@@ -68,6 +100,7 @@ type NodeBase = {
   opacity: number
   blendMode?: BlendMode
   parentId?: string
+  effects?: Effect[]
 }
 
 export type RectNode = NodeBase & {
@@ -159,6 +192,17 @@ export type GroupNode = NodeBase & {
   collapsed?: boolean
 }
 
+// User-uploaded image or SVG, stored in the IndexedDB `assets` table and
+// referenced by id. The asset's content *is* the visual — no fill or stroke
+// — but opacity / blendMode (on NodeBase) still apply. Width / height are
+// node-local pixel dimensions; bakeScale multiplies them on resize.
+export type AssetNode = NodeBase & {
+  type: 'asset'
+  assetId: string
+  width: number
+  height: number
+}
+
 export type BooleanNode = NodeBase & {
   type: 'boolean'
   op: BooleanOp
@@ -181,6 +225,7 @@ export type CanvasNode =
   | StarNode
   | GroupNode
   | BooleanNode
+  | AssetNode
 
 export type Viewport = {
   x: number

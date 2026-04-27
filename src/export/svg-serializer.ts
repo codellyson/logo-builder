@@ -1,6 +1,8 @@
 import type {
+  AssetNode,
   BooleanNode,
   CanvasNode,
+  Effect,
   EllipseNode,
   Fill,
   IconNode,
@@ -18,6 +20,7 @@ import { textToOutlines } from '@/composition/text-to-outlines'
 import { evaluateBoolean } from '@/composition/evaluate-boolean'
 import { polygonPoints, starPoints } from '@/composition/to-path'
 import { fillSolidColor, splitColorOpacity } from '@/composition/fills'
+import { getAsset } from '@/persistence/assets'
 
 type StrokedAttrs = {
   stroke?: Fill | null
@@ -71,10 +74,58 @@ type Opts = {
   background?: string | null
 }
 
-// Mutable accumulator threaded through the recursion. Gradient defs are
-// collected here and emitted in a single <defs> block at the top of the SVG.
+// Mutable accumulator threaded through the recursion. Gradient and filter
+// defs are collected here and emitted in a single <defs> block at the top
+// of the SVG.
 type Defs = {
   gradients: string[]
+  filters: string[]
+}
+
+// Builds an SVG `<filter>` for a single effect. Filter region is set
+// generously (-50% / 200%) so large blurs / shadows don't clip in the
+// default objectBoundingBox region (-10% / 120%).
+function effectFilterXml(id: string, eff: Effect): string | null {
+  if (!eff.enabled) return null
+  const open = `<filter id="${id}" x="-50%" y="-50%" width="200%" height="200%">`
+  const close = `</filter>`
+  if (eff.type === 'drop-shadow' || eff.type === 'outer-glow') {
+    const dx = eff.type === 'drop-shadow' ? eff.offsetX : 0
+    const dy = eff.type === 'drop-shadow' ? eff.offsetY : 0
+    const { color, opacity } = splitColorOpacity(eff.color)
+    const finalOpacity = opacity * eff.opacity
+    return [
+      open,
+      `<feGaussianBlur in="SourceAlpha" stdDeviation="${eff.blur}"/>`,
+      `<feOffset dx="${dx}" dy="${dy}" result="off"/>`,
+      `<feFlood flood-color="${color}" flood-opacity="${finalOpacity}"/>`,
+      `<feComposite in2="off" operator="in"/>`,
+      `<feMerge><feMergeNode/><feMergeNode in="SourceGraphic"/></feMerge>`,
+      close,
+    ].join('')
+  }
+  if (eff.type === 'blur') {
+    return `${open}<feGaussianBlur stdDeviation="${eff.radius}"/>${close}`
+  }
+  return null
+}
+
+// Wraps `inner` in a chain of `<g filter="url(#…)">` elements — one per
+// enabled shadow-like effect — and emits each filter into `defs.filters`.
+// Effects render in array order: effects[0] is innermost (closest to the
+// geometry), effects[last] is outermost. Returns the wrapped SVG string.
+function wrapWithEffects(nodeId: string, effects: Effect[] | undefined, inner: string, defs: Defs): string {
+  if (!effects || effects.length === 0) return inner
+  let wrapped = inner
+  for (let i = 0; i < effects.length; i++) {
+    const eff = effects[i]
+    const filterId = `e-${nodeId}-${i}`
+    const filterXml = effectFilterXml(filterId, eff)
+    if (!filterXml) continue
+    defs.filters.push(filterXml)
+    wrapped = `<g filter="url(#${filterId})">${wrapped}</g>`
+  }
+  return wrapped
 }
 
 function transform(n: CanvasNode): string {
@@ -237,6 +288,37 @@ async function booleanSvg(n: BooleanNode, allNodes: CanvasNode[], defs: Defs): P
   return `<path d="${data}" ${fillAttrFor(n.fill, n.id, defs)}${strokeAttrs(n, defs)}/>`
 }
 
+// Raster assets export as `<image>` with a base64 data URL so the SVG is
+// fully self-contained. SVG assets export by inlining the asset's body
+// inside a `<g transform="scale(sx sy)">` wrapper — same pattern as
+// icons. Missing assets emit nothing (fail-soft; the canvas placeholder
+// is enough of a signal in the editor).
+async function assetSvg(n: AssetNode): Promise<string> {
+  const rec = await getAsset(n.assetId)
+  if (!rec) return ''
+  if (rec.kind === 'image') {
+    const dataUrl = await blobToDataURL(rec.blob)
+    return `<image href="${dataUrl}" width="${n.width}" height="${n.height}" preserveAspectRatio="none"/>`
+  }
+  if (rec.kind === 'svg') {
+    const text = await rec.blob.text()
+    const inner = text.replace(/^<svg[^>]*>/, '').replace(/<\/svg>\s*$/, '')
+    const sx = rec.width === 0 ? 1 : n.width / rec.width
+    const sy = rec.height === 0 ? 1 : n.height / rec.height
+    return `<g transform="scale(${sx} ${sy})">${inner}</g>`
+  }
+  return ''
+}
+
+function blobToDataURL(blob: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => resolve(String(reader.result ?? ''))
+    reader.onerror = () => reject(reader.error ?? new Error('Failed to read blob'))
+    reader.readAsDataURL(blob)
+  })
+}
+
 async function nodeSvg(
   n: CanvasNode,
   childrenOf: Map<string, CanvasNode[]>,
@@ -268,7 +350,9 @@ async function nodeSvg(
   else if (n.type === 'text') body = await textSvg(n, defs)
   else if (n.type === 'icon') body = await iconSvg(n, defs)
   else if (n.type === 'boolean') body = await booleanSvg(n, allNodes, defs)
-  return `<g${tf}${opacity}${blend}>${body}</g>`
+  else if (n.type === 'asset') body = await assetSvg(n)
+  const wrapped = wrapWithEffects(n.id, n.effects, body, defs)
+  return `<g${tf}${opacity}${blend}>${wrapped}</g>`
 }
 
 export async function serializeSvg({ nodes, width, height, background }: Opts): Promise<string> {
@@ -279,14 +363,15 @@ export async function serializeSvg({ nodes, width, height, background }: Opts): 
     if (arr) arr.push(n)
     else childrenOf.set(n.parentId, [n])
   }
-  const defs: Defs = { gradients: [] }
+  const defs: Defs = { gradients: [], filters: [] }
   const topLevel = nodes.filter((n) => !n.parentId && !n.hidden)
   const bodies: string[] = []
   for (const n of topLevel) bodies.push(await nodeSvg(n, childrenOf, nodes, defs))
   const bg = background
     ? `<rect width="${width}" height="${height}" fill="${background}"/>`
     : ''
-  const defsBlock = defs.gradients.length ? `<defs>${defs.gradients.join('')}</defs>` : ''
+  const defsContent = defs.gradients.join('') + defs.filters.join('')
+  const defsBlock = defsContent ? `<defs>${defsContent}</defs>` : ''
   return `<?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${height}" width="${width}" height="${height}">${defsBlock}${bg}${bodies.join('')}</svg>`
 }

@@ -294,9 +294,6 @@ export function LayersPanel() {
 
   return (
     <div className="flex h-full flex-col">
-      <div className="px-3 pt-3 text-xs font-medium uppercase tracking-wider text-neutral-500">
-        Layers
-      </div>
       <div className="mt-2 flex-1 overflow-y-auto">
         {rows.length === 0 && (
           <div className="px-3 py-6 text-xs text-neutral-600">

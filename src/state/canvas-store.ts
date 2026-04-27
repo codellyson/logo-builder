@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 import { temporal } from 'zundo'
 import { useStore } from 'zustand'
-import type { BooleanCache, BooleanNode, BooleanOp, CanvasNode, Fill, GroupNode, PathNode, Viewport } from '@/canvas/types'
+import type { BooleanCache, BooleanNode, BooleanOp, CanvasNode, Effect, Fill, GroupNode, PathNode, Viewport } from '@/canvas/types'
 import { solidFill } from '@/composition/fills'
 import { newId } from '@/lib/id'
 import { DEFAULT_PALETTE, generatePalette, type Palette } from '@/colors/palette'
@@ -83,6 +83,7 @@ type CanvasState = {
 
 type CanvasActions = {
   addNode: (node: CanvasNode) => void
+  addNodes: (nodes: CanvasNode[]) => void
   updateNode: (id: string, patch: Partial<CanvasNode>) => void
   removeNodes: (ids: string[]) => void
   duplicateNodes: (ids: string[]) => void
@@ -127,6 +128,11 @@ type CanvasActions = {
   replaceState: (
     snapshot: Pick<CanvasState, 'nodes' | 'stageWidth' | 'stageHeight'> & { palette?: Palette },
   ) => void
+  replaceNode: (id: string, next: CanvasNode | CanvasNode[]) => void
+  addEffect: (nodeId: string, effect: Effect) => void
+  updateEffect: (nodeId: string, index: number, patch: Partial<Effect>) => void
+  removeEffect: (nodeId: string, index: number) => void
+  reorderEffect: (nodeId: string, from: number, to: number) => void
   setActiveProjectId: (id: string | null) => void
   setActiveProjectName: (name: string) => void
 }
@@ -155,6 +161,19 @@ export const useCanvasStore = create<CanvasState & CanvasActions>()(
 
       addNode: (node) =>
         set((s) => ({ nodes: [...s.nodes, node], selectedIds: [node.id] })),
+
+      // Bulk insert. Caller orders the array per the canvas-store z-order
+      // convention (children before their parent container) and sets
+      // parentIds. Selects the topmost (last) node — typically the wrapping
+      // group when adding a subtree.
+      addNodes: (added) =>
+        set((s) => {
+          if (added.length === 0) return s
+          return {
+            nodes: [...s.nodes, ...added],
+            selectedIds: [added[added.length - 1].id],
+          }
+        }),
 
       updateNode: (id, patch) =>
         set((s) => {
@@ -822,6 +841,88 @@ export const useCanvasStore = create<CanvasState & CanvasActions>()(
           editingBooleanId: null,
           fitRequestId: s.fitRequestId + 1,
         })),
+
+      // Effects live on the node's `effects` array (optional, defaults to
+      // []). Effects are render-only — they don't change geometry, so we
+      // skip invalidateBooleanAncestors on these mutations.
+      addEffect: (nodeId, effect) =>
+        set((s) => ({
+          nodes: s.nodes.map((n) => {
+            if (n.id !== nodeId) return n
+            const current = n.effects ?? []
+            // Cap at 8: beyond this, the SVG filter chain gets pathological
+            // and the canvas preview is already an approximation.
+            if (current.length >= 8) return n
+            return { ...n, effects: [...current, effect] } as CanvasNode
+          }),
+        })),
+
+      updateEffect: (nodeId, index, patch) =>
+        set((s) => ({
+          nodes: s.nodes.map((n) => {
+            if (n.id !== nodeId) return n
+            const effects = n.effects ?? []
+            if (index < 0 || index >= effects.length) return n
+            const merged = { ...effects[index], ...patch } as Effect
+            const arr = effects.slice()
+            arr[index] = merged
+            return { ...n, effects: arr } as CanvasNode
+          }),
+        })),
+
+      removeEffect: (nodeId, index) =>
+        set((s) => ({
+          nodes: s.nodes.map((n) => {
+            if (n.id !== nodeId) return n
+            const effects = n.effects ?? []
+            if (index < 0 || index >= effects.length) return n
+            const arr = effects.slice()
+            arr.splice(index, 1)
+            return { ...n, effects: arr.length ? arr : undefined } as CanvasNode
+          }),
+        })),
+
+      reorderEffect: (nodeId, from, to) =>
+        set((s) => {
+          if (from === to) return s
+          return {
+            nodes: s.nodes.map((n) => {
+              if (n.id !== nodeId) return n
+              const effects = n.effects ?? []
+              if (from < 0 || from >= effects.length) return n
+              if (to < 0 || to >= effects.length) return n
+              const arr = effects.slice()
+              const [moved] = arr.splice(from, 1)
+              arr.splice(to, 0, moved)
+              return { ...n, effects: arr } as CanvasNode
+            }),
+          }
+        }),
+
+      // In-place node swap. Preserves the array index (z-order) of the
+      // replaced node and selects the topmost replacement. When given a
+      // single CanvasNode, that node inherits the previous parentId. When
+      // given an array, the caller is responsible for setting parentIds —
+      // the array order is preserved (children before parent containers,
+      // matching the canvas-store z-order convention). Boolean ancestors
+      // that depended on the previous geometry are invalidated.
+      replaceNode: (id, next) =>
+        set((s) => {
+          const idx = s.nodes.findIndex((n) => n.id === id)
+          if (idx < 0) return s
+          const prev = s.nodes[idx]
+          const replacements = Array.isArray(next)
+            ? next
+            : [{ ...next, parentId: prev.parentId } as CanvasNode]
+          if (replacements.length === 0) return s
+          const arr = [...s.nodes]
+          arr.splice(idx, 1, ...replacements)
+          const top = replacements[replacements.length - 1]
+          return {
+            nodes: invalidateBooleanAncestors(arr, replacements.map((r) => r.id)),
+            selectedIds: [top.id],
+          }
+        }),
 
       setActiveProjectId: (id) => set({ activeProjectId: id }),
 

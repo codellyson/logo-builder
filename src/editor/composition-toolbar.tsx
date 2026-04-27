@@ -1,14 +1,16 @@
 import { Icon } from '@iconify/react'
 import { useCanvasStore } from '@/state/canvas-store'
 import { convertToPath } from '@/composition/to-path'
-import { textToOutlines } from '@/composition/text-to-outlines'
-import type { BooleanOp, CanvasNode } from '@/canvas/types'
+import { textToOutlineGlyphs } from '@/composition/text-to-outlines'
+import type { BooleanOp, CanvasNode, GroupNode, PathNode, TextNode } from '@/canvas/types'
+import { newId } from '@/lib/id'
 import { cn } from '@/lib/cn'
 
 export function CompositionToolbar() {
   const nodes = useCanvasStore((s) => s.nodes)
   const selectedIds = useCanvasStore((s) => s.selectedIds)
   const addNode = useCanvasStore((s) => s.addNode)
+  const addNodes = useCanvasStore((s) => s.addNodes)
   const updateNode = useCanvasStore((s) => s.updateNode)
   const removeNodes = useCanvasStore((s) => s.removeNodes)
   const select = useCanvasStore((s) => s.select)
@@ -54,20 +56,79 @@ export function CompositionToolbar() {
   }
 
   const doTextToOutlines = async () => {
-    const textSelections: CanvasNode[] = selected.filter((n) => n.type === 'text')
-    const results: string[] = []
+    const textSelections = selected.filter((n): n is TextNode => n.type === 'text')
+    const rootIds: string[] = []
     for (const t of textSelections) {
-      if (t.type !== 'text') continue
-      const path = await textToOutlines(t)
-      if (!path) {
+      const glyphs = await textToOutlineGlyphs(t)
+      if (!glyphs || glyphs.length === 0) {
         console.warn('text-to-outlines failed; font file unavailable', t.fontFamily)
         continue
       }
-      addNode(path)
+      // Single-glyph text (e.g. "A") collapses to a tight PathNode.
+      // Multi-glyph text produces one PathNode per letter wrapped in a
+      // Group, so each glyph is selectable / editable on its own.
+      if (glyphs.length === 1) {
+        const g = glyphs[0]
+        const path: PathNode = {
+          id: newId(),
+          type: 'path',
+          name: t.name,
+          locked: false,
+          hidden: false,
+          x: t.x + g.x,
+          y: t.y + g.y,
+          rotation: t.rotation,
+          opacity: t.opacity,
+          blendMode: t.blendMode,
+          parentId: t.parentId,
+          data: g.data,
+          fill: t.fill,
+          stroke: null,
+          strokeWidth: 0,
+          width: g.width,
+          height: g.height,
+        }
+        addNode(path)
+        rootIds.push(path.id)
+      } else {
+        const group: GroupNode = {
+          id: newId(),
+          type: 'group',
+          name: t.name,
+          locked: false,
+          hidden: false,
+          x: t.x,
+          y: t.y,
+          rotation: t.rotation,
+          opacity: t.opacity,
+          blendMode: t.blendMode,
+          parentId: t.parentId,
+          collapsed: false,
+        }
+        const children: PathNode[] = glyphs.map((g) => ({
+          id: newId(),
+          type: 'path',
+          name: 'Glyph',
+          locked: false,
+          hidden: false,
+          x: g.x,
+          y: g.y,
+          rotation: 0,
+          opacity: 1,
+          parentId: group.id,
+          data: g.data,
+          fill: t.fill,
+          stroke: null,
+          strokeWidth: 0,
+          width: g.width,
+          height: g.height,
+        }))
+        addNodes([...children, group])
+        rootIds.push(group.id)
+      }
       updateNode(t.id, { hidden: true })
-      results.push(path.id)
     }
-    if (results.length) select(results)
+    if (rootIds.length) select(rootIds)
   }
 
   return (
