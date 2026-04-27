@@ -534,6 +534,7 @@ export function EditorCanvas() {
               listening
             />
             {topLevelNodes.map(renderTree)}
+            <PasteboardMask stageWidth={stageWidth} stageHeight={stageHeight} />
             <CanvasTransformer selectedIds={selectedIds} />
             <Marquee rect={marquee} />
             <Guides guides={guides} scale={viewport.scale} />
@@ -617,5 +618,52 @@ export function EditorCanvas() {
         </div>
       )}
     </div>
+  )
+}
+
+// Dims the area outside the artboard so the artboard reads as the
+// authoritative export surface, while still letting users park art on the
+// pasteboard during composition. Four rects form a frame extending far
+// past any reasonable zoom level. listening:false so they don't swallow
+// clicks intended for nodes that happen to be on the pasteboard.
+const MASK_REACH = 100000
+const MASK_FILL = 'rgba(10, 10, 10, 0.55)'
+
+function PasteboardMask({ stageWidth, stageHeight }: { stageWidth: number; stageHeight: number }) {
+  return (
+    <>
+      <Rect
+        listening={false}
+        x={-MASK_REACH}
+        y={-MASK_REACH}
+        width={MASK_REACH * 2 + stageWidth}
+        height={MASK_REACH}
+        fill={MASK_FILL}
+      />
+      <Rect
+        listening={false}
+        x={-MASK_REACH}
+        y={stageHeight}
+        width={MASK_REACH * 2 + stageWidth}
+        height={MASK_REACH}
+        fill={MASK_FILL}
+      />
+      <Rect
+        listening={false}
+        x={-MASK_REACH}
+        y={0}
+        width={MASK_REACH}
+        height={stageHeight}
+        fill={MASK_FILL}
+      />
+      <Rect
+        listening={false}
+        x={stageWidth}
+        y={0}
+        width={MASK_REACH}
+        height={stageHeight}
+        fill={MASK_FILL}
+      />
+    </>
   )
 }
