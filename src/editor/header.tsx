@@ -1,5 +1,13 @@
+import { useEffect, useState } from 'react'
 import { Icon } from '@iconify/react'
 import { useCanvasStore } from '@/state/canvas-store'
+import {
+  createAndActivateNewProject,
+  deleteActiveProject,
+  duplicateActiveProject,
+  renameActiveProject,
+} from '@/state/active-project-actions'
+import { Popover } from '@/ui/popover'
 import { useStore } from 'zustand'
 import { cn } from '@/lib/cn'
 
@@ -20,16 +28,7 @@ export function EditorHeader({ onOpenExport, onOpenProjects, canExport }: Header
       <div className="flex items-center gap-3">
         <div className="h-5 w-5 rounded-sm bg-gradient-to-br from-fuchsia-500 to-indigo-500" />
         <span className="text-sm font-medium tracking-tight">Logo Builder</span>
-        {onOpenProjects && (
-          <button
-            type="button"
-            onClick={onOpenProjects}
-            className="ml-2 flex items-center gap-1.5 rounded px-2 py-1 text-xs text-neutral-400 hover:bg-neutral-800 hover:text-neutral-100"
-          >
-            <Icon icon="lucide:folder-open" width={13} height={13} />
-            <span>Projects</span>
-          </button>
-        )}
+        <ActiveProjectChip onOpenAll={onOpenProjects} />
       </div>
 
       <div className="flex items-center gap-1">
@@ -57,6 +56,148 @@ export function EditorHeader({ onOpenExport, onOpenProjects, canExport }: Header
       </button>
     </header>
   )
+}
+
+// Active project surface: shows the project name with a chevron. Click →
+// dropdown menu (Rename / Duplicate / New project / All projects... /
+// Delete). The menu's "Rename" item swaps the chip into an inline input.
+function ActiveProjectChip({ onOpenAll }: { onOpenAll?: () => void }) {
+  const name = useCanvasStore((s) => s.activeProjectName)
+  const [renaming, setRenaming] = useState(false)
+  const [draft, setDraft] = useState(name)
+
+  // Reset the draft whenever the upstream name changes (e.g. project switch
+  // through the modal) so the input doesn't show stale text on next open.
+  useEffect(() => {
+    if (!renaming) setDraft(name)
+  }, [name, renaming])
+
+  const commitRename = async () => {
+    const next = draft.trim() || 'Untitled'
+    if (next !== name) await renameActiveProject(next)
+    setRenaming(false)
+  }
+
+  if (renaming) {
+    return (
+      <input
+        autoFocus
+        value={draft}
+        onChange={(e) => setDraft(e.target.value)}
+        onBlur={commitRename}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') commitRename()
+          else if (e.key === 'Escape') {
+            setDraft(name)
+            setRenaming(false)
+          }
+        }}
+        className="ml-2 w-44 rounded border border-neutral-700 bg-neutral-900 px-2 py-1 text-xs text-neutral-100 outline-none focus:border-neutral-500"
+      />
+    )
+  }
+
+  return (
+    <Popover
+      align="start"
+      trigger={
+        <button
+          type="button"
+          className="ml-2 flex max-w-[14rem] items-center gap-1 rounded px-2 py-1 text-xs text-neutral-300 hover:bg-neutral-800 hover:text-neutral-100"
+          title={name}
+        >
+          <span className="truncate">{name}</span>
+          <Icon icon="lucide:chevron-down" width={11} height={11} />
+        </button>
+      }
+      className="w-48 p-1"
+    >
+      {({ close }) => (
+        <>
+          <MenuItem
+            icon="lucide:pencil"
+            label="Rename"
+            onClick={() => {
+              setDraft(name)
+              setRenaming(true)
+              close()
+            }}
+          />
+          <MenuItem
+            icon="lucide:copy"
+            label="Duplicate"
+            onClick={async () => {
+              await duplicateActiveProject()
+              close()
+            }}
+          />
+          <MenuItem
+            icon="lucide:plus"
+            label="New project"
+            onClick={async () => {
+              await createAndActivateNewProject()
+              close()
+            }}
+          />
+          <MenuItem
+            icon="lucide:folder-open"
+            label="All projects…"
+            onClick={() => {
+              close()
+              onOpenAll?.()
+            }}
+          />
+          <MenuDivider />
+          <MenuItem
+            icon="lucide:trash-2"
+            label="Delete"
+            danger
+            onClick={async () => {
+              const ok = window.confirm(`Delete "${name}"? This can't be undone.`)
+              if (!ok) {
+                close()
+                return
+              }
+              await deleteActiveProject()
+              close()
+            }}
+          />
+        </>
+      )}
+    </Popover>
+  )
+}
+
+function MenuItem({
+  icon,
+  label,
+  onClick,
+  danger,
+}: {
+  icon: string
+  label: string
+  onClick: () => void
+  danger?: boolean
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={cn(
+        'flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-xs',
+        danger
+          ? 'text-neutral-400 hover:bg-red-500/10 hover:text-red-300'
+          : 'text-neutral-300 hover:bg-neutral-800 hover:text-neutral-100',
+      )}
+    >
+      <Icon icon={icon} width={13} height={13} />
+      <span>{label}</span>
+    </button>
+  )
+}
+
+function MenuDivider() {
+  return <div className="my-1 border-t border-neutral-800" />
 }
 
 function HeaderButton({

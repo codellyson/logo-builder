@@ -13,7 +13,7 @@ import { ProjectsModal } from '@/editor/projects-modal'
 import { ShortcutsModal } from '@/editor/shortcuts-modal'
 import { ZoomControls } from '@/editor/zoom-controls'
 import { EmptyState } from '@/editor/empty-state'
-import { useAutosave, restoreSnapshotOnMount } from '@/state/autosave'
+import { useAutosave, restoreActiveProjectOnMount } from '@/state/autosave'
 import { useCanvasStore } from '@/state/canvas-store'
 import { startBooleanEvalRunner } from '@/composition/boolean-eval-runner'
 
@@ -21,15 +21,34 @@ export function Editor() {
   const [exportOpen, setExportOpen] = useState(false)
   const [projectsOpen, setProjectsOpen] = useState(false)
   const [helpOpen, setHelpOpen] = useState(false)
+  const [bootReady, setBootReady] = useState(false)
   const hasNodes = useCanvasStore((s) => s.nodes.length > 0)
   useKeyboardShortcuts({ onToggleHelp: () => setHelpOpen((v) => !v) })
   useAutosave()
 
+  // Boot the active project before rendering the editor surface so the
+  // canvas mounts onto a fully-restored store. The autosave subscription
+  // above only fires on actual changes, so this initial replaceState
+  // doesn't trigger a redundant write.
   useEffect(() => {
-    restoreSnapshotOnMount()
+    let cancelled = false
+    void restoreActiveProjectOnMount().then(() => {
+      if (!cancelled) setBootReady(true)
+    })
+    return () => {
+      cancelled = true
+    }
   }, [])
 
   useEffect(() => startBooleanEvalRunner(), [])
+
+  if (!bootReady) {
+    return (
+      <div className="flex h-screen w-screen items-center justify-center bg-neutral-950 text-xs text-neutral-500">
+        Loading…
+      </div>
+    )
+  }
 
   return (
     <div className="flex h-screen w-screen flex-col bg-neutral-950 text-neutral-100">

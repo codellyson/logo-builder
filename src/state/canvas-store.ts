@@ -74,6 +74,11 @@ type CanvasState = {
   toolMode: ToolMode
   penDraft: PenDraftState
   pathEditState: PathEditState
+  // Identity of the project the autosave loop writes to. Mirrored from the
+  // localStorage-backed active id so components can subscribe and re-render
+  // (e.g. the header showing the current project name).
+  activeProjectId: string | null
+  activeProjectName: string
 }
 
 type CanvasActions = {
@@ -122,6 +127,8 @@ type CanvasActions = {
   replaceState: (
     snapshot: Pick<CanvasState, 'nodes' | 'stageWidth' | 'stageHeight'> & { palette?: Palette },
   ) => void
+  setActiveProjectId: (id: string | null) => void
+  setActiveProjectName: (name: string) => void
 }
 
 const initialState: CanvasState = {
@@ -137,6 +144,8 @@ const initialState: CanvasState = {
   toolMode: 'select',
   penDraft: null,
   pathEditState: null,
+  activeProjectId: null,
+  activeProjectName: 'Untitled',
 }
 
 export const useCanvasStore = create<CanvasState & CanvasActions>()(
@@ -813,6 +822,10 @@ export const useCanvasStore = create<CanvasState & CanvasActions>()(
           editingBooleanId: null,
           fitRequestId: s.fitRequestId + 1,
         })),
+
+      setActiveProjectId: (id) => set({ activeProjectId: id }),
+
+      setActiveProjectName: (name) => set({ activeProjectName: name }),
     }),
     {
       partialize: (s) => ({
