@@ -129,6 +129,33 @@ export async function createEmptyProject(name: string): Promise<ProjectRecord> {
   return rec
 }
 
+// Persists a project from a pre-built snapshot. Used by the templates
+// flow — the template registry hands us an instantiated snapshot, we
+// rewrite each node id to a fresh value (so two pickings of the same
+// template don't share ids) and save.
+export async function createProjectFromSnapshot(
+  name: string,
+  snapshot: ProjectSnapshot,
+): Promise<ProjectRecord> {
+  const idMap = new Map<string, string>()
+  for (const n of snapshot.nodes) idMap.set(n.id, newId())
+  const remappedNodes = snapshot.nodes.map((n) => ({
+    ...n,
+    id: idMap.get(n.id)!,
+    parentId: n.parentId ? idMap.get(n.parentId) : undefined,
+  }))
+  const now = Date.now()
+  const rec: ProjectRecord = {
+    id: newId(),
+    name: name.trim() || 'Untitled',
+    createdAt: now,
+    updatedAt: now,
+    snapshot: { ...snapshot, nodes: remappedNodes, version: SCHEMA_VERSION },
+  }
+  await db.projects.put(rec)
+  return rec
+}
+
 function emptySnapshot(): ProjectSnapshot {
   return {
     version: SCHEMA_VERSION,

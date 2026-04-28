@@ -18,6 +18,7 @@ import { cn } from '@/lib/cn'
 
 type Props = {
   onClose: () => void
+  onPickTemplate?: () => void
 }
 
 type SortMode = 'recent' | 'name' | 'oldest'
@@ -28,7 +29,7 @@ const SORT_OPTIONS: { value: SortMode; label: string }[] = [
   { value: 'oldest', label: 'Oldest' },
 ]
 
-export function ProjectsModal({ onClose }: Props) {
+export function ProjectsModal({ onClose, onPickTemplate }: Props) {
   const [projects, setProjects] = useState<ProjectRecord[]>([])
   const [renamingId, setRenamingId] = useState<string | null>(null)
   const [activeId, setActiveId] = useState<string | null>(() => getActiveProjectId())
@@ -100,6 +101,16 @@ export function ProjectsModal({ onClose }: Props) {
           </div>
           <div className="flex items-center gap-2">
             <SortControl value={sort} onChange={setSort} />
+            {onPickTemplate && (
+              <button
+                type="button"
+                onClick={onPickTemplate}
+                className="flex items-center gap-1 rounded-md border border-neutral-800 bg-neutral-900 px-3 py-1.5 text-xs font-medium text-neutral-200 hover:border-neutral-700"
+              >
+                <Icon icon="lucide:layout-template" width={13} height={13} />
+                From template
+              </button>
+            )}
             <button
               type="button"
               onClick={onNew}

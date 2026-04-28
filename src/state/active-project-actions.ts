@@ -1,6 +1,7 @@
 import { useCanvasStore } from '@/state/canvas-store'
 import {
   createEmptyProject,
+  createProjectFromSnapshot,
   ensureActiveProject,
   setActiveProjectId as persistActiveId,
 } from '@/persistence/active-project'
@@ -11,6 +12,7 @@ import {
   renameProject,
 } from '@/persistence/projects'
 import type { ProjectRecord } from '@/persistence/db'
+import { instantiateTemplate, type Template } from '@/templates/registry'
 
 // Loads a project record into the canvas store, switches the active id,
 // and clears the temporal history (you can't undo across project
@@ -54,6 +56,21 @@ export async function renameActiveProject(name: string): Promise<void> {
 
 export async function createAndActivateNewProject(name = 'Untitled'): Promise<ProjectRecord> {
   const rec = await createEmptyProject(name)
+  activateProject(rec)
+  return rec
+}
+
+// Picks a template, swaps in the user's brand name, and creates +
+// activates a new project from it. The project's name defaults to the
+// brand name (so the projects list is searchable by what the user typed)
+// and falls back to the template's display name.
+export async function createAndActivateFromTemplate(
+  template: Template,
+  options: { brandName: string; paletteSeed?: string },
+): Promise<ProjectRecord> {
+  const snapshot = instantiateTemplate(template, options)
+  const projectName = options.brandName.trim() || template.name
+  const rec = await createProjectFromSnapshot(projectName, snapshot)
   activateProject(rec)
   return rec
 }

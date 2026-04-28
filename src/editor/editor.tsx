@@ -26,11 +26,15 @@ const ProjectsModal = lazy(() =>
 const ShortcutsModal = lazy(() =>
   import('@/editor/shortcuts-modal').then((m) => ({ default: m.ShortcutsModal })),
 )
+const TemplatesModal = lazy(() =>
+  import('@/editor/templates-modal').then((m) => ({ default: m.TemplatesModal })),
+)
 
 export function Editor() {
   const [exportOpen, setExportOpen] = useState(false)
   const [projectsOpen, setProjectsOpen] = useState(false)
   const [helpOpen, setHelpOpen] = useState(false)
+  const [templatesOpen, setTemplatesOpen] = useState(false)
   const [bootReady, setBootReady] = useState(false)
   const hasNodes = useCanvasStore((s) => s.nodes.length > 0)
   useKeyboardShortcuts({ onToggleHelp: () => setHelpOpen((v) => !v) })
@@ -86,8 +90,17 @@ export function Editor() {
       />
       <Suspense fallback={null}>
         {exportOpen && <ExportModal onClose={() => setExportOpen(false)} />}
-        {projectsOpen && <ProjectsModal onClose={() => setProjectsOpen(false)} />}
+        {projectsOpen && (
+          <ProjectsModal
+            onClose={() => setProjectsOpen(false)}
+            onPickTemplate={() => {
+              setProjectsOpen(false)
+              setTemplatesOpen(true)
+            }}
+          />
+        )}
         {helpOpen && <ShortcutsModal onClose={() => setHelpOpen(false)} />}
+        {templatesOpen && <TemplatesModal onClose={() => setTemplatesOpen(false)} />}
       </Suspense>
       <div className="flex flex-1 overflow-hidden">
         <aside className="w-64 shrink-0 border-r border-neutral-800 bg-neutral-950">
