@@ -12,8 +12,10 @@ import type {
   BooleanOp,
   CanvasNode,
   EllipseNode,
+  GroupNode,
   IconNode,
   LineNode,
+  LockupRole,
   PathNode,
   PolygonNode,
   RectNode,
@@ -52,7 +54,6 @@ import type { AssetRecord } from '@/persistence/db'
 import { svgAssetToPaths } from '@/composition/svg-asset-to-path'
 import { solidFill } from '@/composition/fills'
 import { newId } from '@/lib/id'
-import type { GroupNode } from '@/canvas/types'
 
 export function PropertiesPanel() {
   const nodes = useCanvasStore((s) => s.nodes)
@@ -157,6 +158,9 @@ function SingleEditor({ node }: { node: CanvasNode }) {
       {node.type === 'polygon' && <PolygonFields node={node} />}
       {node.type === 'star' && <StarFields node={node} />}
       {node.type === 'boolean' && <BooleanFields node={node} />}
+      {(node.type === 'group' || node.type === 'boolean') && (
+        <LockupRoleField node={node} />
+      )}
       <EffectsSection node={node} />
     </div>
   )
@@ -914,6 +918,33 @@ function AssetFields({ node }: { node: AssetNode }) {
           {error}
         </div>
       )}
+    </div>
+  )
+}
+
+function LockupRoleField({ node }: { node: GroupNode | BooleanNode }) {
+  const update = useCanvasStore((s) => s.updateNode)
+  const current = node.lockupRole ?? null
+  const set = (next: LockupRole | null) => {
+    update(node.id, { lockupRole: next ?? undefined } as Partial<GroupNode>)
+  }
+  return (
+    <div className="space-y-2 border-t border-neutral-800 pt-3">
+      <FieldRow label="Lockup role">
+        <Segmented
+          value={current ?? 'none'}
+          onChange={(v) => set(v === 'none' ? null : (v as LockupRole))}
+          options={[
+            { value: 'none', label: 'None' },
+            { value: 'icon', label: 'Icon' },
+            { value: 'wordmark', label: 'Wordmark' },
+          ]}
+        />
+      </FieldRow>
+      <div className="rounded border border-neutral-800 bg-neutral-900/50 px-2 py-1.5 text-[10px] text-neutral-500">
+        Tags this {node.type} so the icon-only / wordmark-only export
+        variants land on the right shapes.
+      </div>
     </div>
   )
 }

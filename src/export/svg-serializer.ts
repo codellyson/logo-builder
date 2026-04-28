@@ -72,6 +72,10 @@ type Opts = {
   height: number
   nodes: CanvasNode[]
   background?: string | null
+  // Optional uniform padding in node-local px applied to the viewBox on
+  // every side. Used by export to give app-icon-style safe area without
+  // mutating node positions.
+  padding?: number
 }
 
 // Mutable accumulator threaded through the recursion. Gradient and filter
@@ -355,7 +359,7 @@ async function nodeSvg(
   return `<g${tf}${opacity}${blend}>${wrapped}</g>`
 }
 
-export async function serializeSvg({ nodes, width, height, background }: Opts): Promise<string> {
+export async function serializeSvg({ nodes, width, height, background, padding }: Opts): Promise<string> {
   const childrenOf = new Map<string, CanvasNode[]>()
   for (const n of nodes) {
     if (!n.parentId) continue
@@ -367,11 +371,19 @@ export async function serializeSvg({ nodes, width, height, background }: Opts): 
   const topLevel = nodes.filter((n) => !n.parentId && !n.hidden)
   const bodies: string[] = []
   for (const n of topLevel) bodies.push(await nodeSvg(n, childrenOf, nodes, defs))
+  // Padding extends the viewBox on every side. The artboard stays at
+  // (0, 0) → (width, height); the negative offset on viewBox shifts the
+  // origin so the artboard is centered inside the padded frame.
+  const p = Math.max(0, padding ?? 0)
+  const vbX = -p
+  const vbY = -p
+  const vbW = width + 2 * p
+  const vbH = height + 2 * p
   const bg = background
-    ? `<rect width="${width}" height="${height}" fill="${background}"/>`
+    ? `<rect x="${vbX}" y="${vbY}" width="${vbW}" height="${vbH}" fill="${background}"/>`
     : ''
   const defsContent = defs.gradients.join('') + defs.filters.join('')
   const defsBlock = defsContent ? `<defs>${defsContent}</defs>` : ''
   return `<?xml version="1.0" encoding="UTF-8"?>
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${height}" width="${width}" height="${height}">${defsBlock}${bg}${bodies.join('')}</svg>`
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="${vbX} ${vbY} ${vbW} ${vbH}" width="${vbW}" height="${vbH}">${defsBlock}${bg}${bodies.join('')}</svg>`
 }

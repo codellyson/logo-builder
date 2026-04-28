@@ -56,8 +56,10 @@ export async function loadActiveProject(): Promise<ProjectRecord | null> {
 //  - v4 → v5: added 'asset' node variant. v4 records simply have no assets.
 //  - v5 → v6: added optional `effects` field on NodeBase. v5 records have
 //    no effects, which loads as `undefined` and renders identically.
+//  - v6 → v7: added optional `lockupRole` on Group / Boolean. v6 records
+//    have no roles; export variants fall back to the heuristic.
 //
-// Both upgrades just rewrite the version field; no shape migration needed.
+// All upgrades just rewrite the version field; no shape migration needed.
 async function maybeUpgradeSnapshot(rec: ProjectRecord): Promise<ProjectRecord | null> {
   const v = rec.snapshot.version
   if (v === SCHEMA_VERSION) return rec
@@ -111,7 +113,7 @@ export async function ensureActiveProject(): Promise<ProjectRecord> {
 function isLoadableVersion(v: number): boolean {
   // Mirrors maybeUpgradeSnapshot's accepted set: the current version, plus
   // any version we know how to migrate forward in place.
-  return v === SCHEMA_VERSION || v === 4 || v === 5
+  return v === SCHEMA_VERSION || v === 4 || v === 5 || v === 6
 }
 
 export async function createEmptyProject(name: string): Promise<ProjectRecord> {

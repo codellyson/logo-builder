@@ -9,7 +9,7 @@ import type { Palette } from '@/colors/palette'
 // v5 is non-destructive (a v4 project loads cleanly into v5 code, just
 // without any asset nodes), so the load path auto-upgrades v4 snapshots
 // in place rather than rejecting them.
-export const SCHEMA_VERSION = 6
+export const SCHEMA_VERSION = 7
 
 export type ProjectSnapshot = {
   version: number

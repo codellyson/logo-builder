@@ -187,9 +187,16 @@ export type StarNode = NodeBase & {
   strokeJoin?: StrokeJoin
 }
 
+// Optional tag designating a container's role in a logo lockup. Read by
+// the export-variant pipeline so `icon-only` and `wordmark-only` ZIP
+// outputs land on the right shapes; falls back to a type-based heuristic
+// when no roles are tagged.
+export type LockupRole = 'icon' | 'wordmark'
+
 export type GroupNode = NodeBase & {
   type: 'group'
   collapsed?: boolean
+  lockupRole?: LockupRole
 }
 
 // User-uploaded image or SVG, stored in the IndexedDB `assets` table and
@@ -211,6 +218,7 @@ export type BooleanNode = NodeBase & {
   strokeWidth: number
   strokeJoin?: StrokeJoin
   collapsed?: boolean
+  lockupRole?: LockupRole
   cache: BooleanCache | null
 }
 

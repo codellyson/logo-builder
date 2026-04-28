@@ -420,6 +420,14 @@ export function LayersPanel() {
                     {node.name}
                   </span>
                 )}
+                {isContainer && (node as GroupNode | BooleanNode).lockupRole && (
+                  <span
+                    className="rounded bg-amber-500/20 px-1 text-[9px] font-bold uppercase tracking-wider text-amber-300"
+                    title={`Lockup role: ${(node as GroupNode | BooleanNode).lockupRole}`}
+                  >
+                    {(node as GroupNode | BooleanNode).lockupRole === 'icon' ? 'I' : 'W'}
+                  </span>
+                )}
                 <button
                   type="button"
                   onClick={(e) => {
