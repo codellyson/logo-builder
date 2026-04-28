@@ -1,10 +1,8 @@
 @import 'tailwindcss';
 
-/* Theme tokens. Editor surfaces consume these via Tailwind utilities
-   (bg-surface, text-ink, border-line, etc.). The default is dark; the
-   light palette overrides come in via [data-theme="light"] on <html>.
-   Landing page intentionally hardcodes its own warm-white palette and
-   isn't affected by the toggle. */
+/* Editor surface tokens. Consumed via Tailwind utilities (bg-surface,
+   text-ink, border-line). The editor is dark-only; the landing page
+   hardcodes its own warm-white palette and is unaffected. */
 :root {
   --surface: #0a0a0a;
   --surface-2: #171717;
@@ -15,22 +13,6 @@
   --ink-4: #737373;
   --line: #262626;
   --line-strong: #404040;
-}
-
-[data-theme='light'] {
-  /* Light-mode elevation reverses the dark scale: surface is the brightest
-     plane (sidebars, header, floating panels), surface-2 is the recessed
-     workspace, surface-3 is the deepest (hover/inputs). Steps are wide on
-     purpose — narrow steps in warm-white look muddy on monitors. */
-  --surface: #FFFFFF;
-  --surface-2: #EAE2D0;
-  --surface-3: #D5CAB1;
-  --ink: #0a0a0a;
-  --ink-2: #2a2a2a;
-  --ink-3: #4f4f4f;
-  --ink-4: #707070;
-  --line: #C9C0A9;
-  --line-strong: #A89E83;
 }
 
 @theme {

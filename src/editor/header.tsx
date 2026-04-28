@@ -9,7 +9,6 @@ import {
   renameActiveProject,
 } from '@/state/active-project-actions'
 import { snapshotFromStore } from '@/state/autosave'
-import { useTheme, toggleTheme } from '@/state/theme'
 import { Popover } from '@/ui/popover'
 import { useStore } from 'zustand'
 import { cn } from '@/lib/cn'
@@ -34,7 +33,6 @@ export function EditorHeader({ onOpenExport, onOpenProjects, canExport }: Header
   const futureStates = useStore(useCanvasStore.temporal, (s) => s.futureStates)
   const canUndo = pastStates.length > 0
   const canRedo = futureStates.length > 0
-  const theme = useTheme()
 
   return (
     <header className="flex h-12 shrink-0 items-center justify-between border-b border-line bg-surface px-4">
@@ -56,11 +54,6 @@ export function EditorHeader({ onOpenExport, onOpenProjects, canExport }: Header
           title="Redo"
           disabled={!canRedo}
           onClick={() => useCanvasStore.temporal.getState().redo()}
-        />
-        <HeaderButton
-          icon={theme === 'dark' ? 'lucide:sun' : 'lucide:moon'}
-          title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
-          onClick={toggleTheme}
         />
       </div>
 

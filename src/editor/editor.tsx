@@ -107,7 +107,7 @@ export function Editor() {
         <aside className="w-64 shrink-0 border-r border-line bg-surface">
           <LeftSidebar />
         </aside>
-        <main className="relative flex-1 overflow-hidden bg-[#2a2a2a]">
+        <main className="relative flex-1 overflow-hidden bg-surface-2">
           <EditorCanvas />
           <DraggablePanel name="toolbar" defaultStyle={{ position: 'absolute', left: 12, top: 12 }}>
             <Toolbar />
