@@ -9,7 +9,7 @@ export function LeftSidebar() {
   const [tab, setTab] = useState<Tab>('layers')
   return (
     <div className="flex h-full flex-col">
-      <div className="flex shrink-0 border-b border-neutral-800">
+      <div className="flex shrink-0 border-b border-line">
         <TabButton active={tab === 'layers'} onClick={() => setTab('layers')}>
           Layers
         </TabButton>
@@ -40,8 +40,8 @@ function TabButton({
       className={cn(
         'flex-1 px-3 py-2 text-[11px] font-medium uppercase tracking-wider transition-colors',
         active
-          ? 'border-b-2 border-indigo-400 text-neutral-100'
-          : 'border-b-2 border-transparent text-neutral-500 hover:text-neutral-300',
+          ? 'border-b-2 border-indigo-400 text-ink'
+          : 'border-b-2 border-transparent text-ink-4 hover:text-ink-2',
       )}
     >
       {children}

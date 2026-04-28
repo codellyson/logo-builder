@@ -109,7 +109,7 @@ export function AssetsPanel() {
         <select
           value={sort}
           onChange={(e) => setSort(e.target.value as SortMode)}
-          className="rounded border border-neutral-800 bg-neutral-900 px-1.5 py-0.5 text-[11px] text-neutral-300 outline-none hover:border-neutral-700"
+          className="rounded border border-line bg-surface-2 px-1.5 py-0.5 text-[11px] text-ink-2 outline-none hover:border-line-strong"
         >
           {SORT_OPTIONS.map((o) => (
             <option key={o.value} value={o.value}>
@@ -179,10 +179,10 @@ export function AssetsPanel() {
         )}
       >
         {busy && (
-          <div className="px-1 pb-2 text-[11px] text-neutral-500">Importing…</div>
+          <div className="px-1 pb-2 text-[11px] text-ink-4">Importing…</div>
         )}
         {assets.length === 0 && !busy && (
-          <div className="px-2 py-8 text-center text-xs text-neutral-600">
+          <div className="px-2 py-8 text-center text-xs text-ink-4">
             Drop or import images and SVGs here.
           </div>
         )}
@@ -238,7 +238,7 @@ function AssetTile({
         type="button"
         onClick={onClick}
         title={asset.name}
-        className="relative flex aspect-square items-center justify-center overflow-hidden rounded border border-neutral-800 bg-neutral-900 hover:border-indigo-500/60"
+        className="relative flex aspect-square items-center justify-center overflow-hidden rounded border border-line bg-surface-2 hover:border-indigo-500/60"
       >
         {url && (
           <img
@@ -277,11 +277,11 @@ function AssetTile({
             if (e.key === 'Enter') onCommitRename(e.currentTarget.value)
             else if (e.key === 'Escape') onCancelRename()
           }}
-          className="rounded bg-neutral-800 px-1 py-0.5 text-[11px] text-neutral-100 outline-none"
+          className="rounded bg-surface-3 px-1 py-0.5 text-[11px] text-ink outline-none"
         />
       ) : (
         <span
-          className="cursor-text truncate text-[11px] text-neutral-400"
+          className="cursor-text truncate text-[11px] text-ink-3"
           onDoubleClick={onStartRename}
           title={asset.name}
         >
@@ -309,8 +309,8 @@ function TileBtn({
       title={title}
       onClick={onClick}
       className={cn(
-        'flex h-5 w-5 items-center justify-center rounded bg-neutral-950/80 text-neutral-400 backdrop-blur',
-        danger ? 'hover:text-red-400' : 'hover:text-neutral-100',
+        'flex h-5 w-5 items-center justify-center rounded bg-surface/80 text-ink-3 backdrop-blur',
+        danger ? 'hover:text-red-400' : 'hover:text-ink',
       )}
     >
       <Icon icon={icon} width={11} height={11} />

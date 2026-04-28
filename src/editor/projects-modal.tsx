@@ -93,11 +93,11 @@ export function ProjectsModal({ onClose, onPickTemplate }: Props) {
         if (e.target === e.currentTarget) onClose()
       }}
     >
-      <div className="flex h-full max-h-[80vh] w-full max-w-2xl flex-col overflow-hidden rounded-lg border border-neutral-800 bg-neutral-950">
-        <div className="flex items-center justify-between border-b border-neutral-800 px-4 py-3">
+      <div className="flex h-full max-h-[80vh] w-full max-w-2xl flex-col overflow-hidden rounded-lg border border-line bg-surface">
+        <div className="flex items-center justify-between border-b border-line px-4 py-3">
           <div>
             <div className="text-sm font-medium">Projects</div>
-            <div className="text-xs text-neutral-500">Stored locally in your browser.</div>
+            <div className="text-xs text-ink-4">Stored locally in your browser.</div>
           </div>
           <div className="flex items-center gap-2">
             <SortControl value={sort} onChange={setSort} />
@@ -105,7 +105,7 @@ export function ProjectsModal({ onClose, onPickTemplate }: Props) {
               <button
                 type="button"
                 onClick={onPickTemplate}
-                className="flex items-center gap-1 rounded-md border border-neutral-800 bg-neutral-900 px-3 py-1.5 text-xs font-medium text-neutral-200 hover:border-neutral-700"
+                className="flex items-center gap-1 rounded-md border border-line bg-surface-2 px-3 py-1.5 text-xs font-medium text-ink hover:border-line-strong"
               >
                 <Icon icon="lucide:layout-template" width={13} height={13} />
                 From template
@@ -122,7 +122,7 @@ export function ProjectsModal({ onClose, onPickTemplate }: Props) {
             <button
               type="button"
               onClick={onClose}
-              className="flex h-8 w-8 items-center justify-center rounded text-neutral-400 hover:bg-neutral-800 hover:text-neutral-100"
+              className="flex h-8 w-8 items-center justify-center rounded text-ink-3 hover:bg-surface-3 hover:text-ink"
             >
               <Icon icon="lucide:x" width={16} height={16} />
             </button>
@@ -131,7 +131,7 @@ export function ProjectsModal({ onClose, onPickTemplate }: Props) {
 
         <div className="flex-1 overflow-y-auto p-2">
           {sorted.length === 0 && (
-            <div className="py-8 text-center text-xs text-neutral-600">No saved projects yet.</div>
+            <div className="py-8 text-center text-xs text-ink-4">No saved projects yet.</div>
           )}
           {sorted.map((p) => (
             <ProjectRow
@@ -178,7 +178,7 @@ function ProjectRow({
     <div
       className={cn(
         'group flex items-center gap-3 rounded px-2 py-2',
-        active ? 'bg-neutral-800/60' : 'hover:bg-neutral-900',
+        active ? 'bg-surface-3/60' : 'hover:bg-surface-2',
       )}
     >
       <ProjectThumbnail snapshot={project.snapshot} cacheKey={project.updatedAt} />
@@ -191,11 +191,11 @@ function ProjectRow({
             if (e.key === 'Enter') onCommitRename(e.currentTarget.value)
             else if (e.key === 'Escape') onCancelRename()
           }}
-          className="flex-1 rounded bg-neutral-800 px-2 py-1 text-xs text-neutral-100 outline-none"
+          className="flex-1 rounded bg-surface-3 px-2 py-1 text-xs text-ink outline-none"
         />
       ) : (
         <div className="min-w-0 flex-1">
-          <div className="truncate text-sm text-neutral-100">
+          <div className="truncate text-sm text-ink">
             {project.name}
             {active && (
               <span className="ml-2 text-[10px] uppercase tracking-wider text-indigo-300">
@@ -203,7 +203,7 @@ function ProjectRow({
               </span>
             )}
           </div>
-          <div className="text-[10px] text-neutral-500">
+          <div className="text-[10px] text-ink-4">
             {new Date(project.updatedAt).toLocaleString()} · {project.snapshot.nodes.length}{' '}
             layer{project.snapshot.nodes.length === 1 ? '' : 's'}
           </div>
@@ -261,7 +261,7 @@ function ProjectThumbnail({
     : null
 
   return (
-    <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded border border-neutral-800 bg-neutral-900">
+    <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded border border-line bg-surface-2">
       {cleaned ? (
         <div
           className="flex h-full w-full items-center justify-center p-1"
@@ -285,7 +285,7 @@ function SortControl({
     <select
       value={value}
       onChange={(e) => onChange(e.target.value as SortMode)}
-      className="rounded border border-neutral-800 bg-neutral-900 px-2 py-1 text-xs text-neutral-300 outline-none hover:border-neutral-700"
+      className="rounded border border-line bg-surface-2 px-2 py-1 text-xs text-ink-2 outline-none hover:border-line-strong"
     >
       {SORT_OPTIONS.map((o) => (
         <option key={o.value} value={o.value}>
@@ -313,8 +313,8 @@ function ActionButton({
       title={title}
       onClick={onClick}
       className={cn(
-        'flex h-7 w-7 items-center justify-center rounded text-neutral-500 hover:bg-neutral-800',
-        danger ? 'hover:text-red-400' : 'hover:text-neutral-100',
+        'flex h-7 w-7 items-center justify-center rounded text-ink-4 hover:bg-surface-3',
+        danger ? 'hover:text-red-400' : 'hover:text-ink',
       )}
     >
       <Icon icon={icon} width={13} height={13} />

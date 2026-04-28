@@ -24,12 +24,12 @@ export function FontPicker({ value, onChange }: Props) {
       trigger={
         <button
           type="button"
-          className="flex w-full items-center justify-between rounded border border-neutral-800 bg-neutral-900 px-2 py-1.5 text-xs text-neutral-200 hover:border-neutral-700"
+          className="flex w-full items-center justify-between rounded border border-line bg-surface-2 px-2 py-1.5 text-xs text-ink hover:border-line-strong"
         >
           <span style={{ fontFamily: value }} className="truncate">
             {value}
           </span>
-          <Icon icon="lucide:chevron-down" width={12} height={12} className="shrink-0 text-neutral-500" />
+          <Icon icon="lucide:chevron-down" width={12} height={12} className="shrink-0 text-ink-4" />
         </button>
       }
       className="w-72"
@@ -122,19 +122,19 @@ function FontPickerBody({
 
   return (
     <div className="flex max-h-96 flex-col">
-      <div className="border-b border-neutral-800 p-2">
+      <div className="border-b border-line p-2">
         <input
           placeholder="Search fonts…"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          className="w-full rounded bg-neutral-900 px-2 py-1 text-xs text-neutral-200 outline-none"
+          className="w-full rounded bg-surface-2 px-2 py-1 text-xs text-ink outline-none"
           autoFocus
         />
       </div>
       <div className="flex-1 overflow-y-auto p-1">
         {filteredCustom.length > 0 && (
           <div className="mb-2">
-            <div className="px-2 py-1 text-[10px] uppercase tracking-wider text-neutral-500">
+            <div className="px-2 py-1 text-[10px] uppercase tracking-wider text-ink-4">
               Custom
             </div>
             {filteredCustom.map((f) => (
@@ -142,7 +142,7 @@ function FontPickerBody({
                 key={f.record.id}
                 className={cn(
                   'group flex items-center justify-between rounded px-2 py-1.5',
-                  value === f.family ? 'bg-neutral-800' : 'hover:bg-neutral-900',
+                  value === f.family ? 'bg-surface-3' : 'hover:bg-surface-2',
                 )}
               >
                 <button
@@ -153,7 +153,7 @@ function FontPickerBody({
                   }}
                   className="flex flex-1 items-center gap-2 text-left"
                 >
-                  <span style={{ fontFamily: f.family }} className="text-sm text-neutral-100">
+                  <span style={{ fontFamily: f.family }} className="text-sm text-ink">
                     {f.family}
                   </span>
                   {value === f.family && (
@@ -173,7 +173,7 @@ function FontPickerBody({
                     icon="lucide:trash-2"
                     width={12}
                     height={12}
-                    className="text-neutral-500 hover:text-red-400"
+                    className="text-ink-4 hover:text-red-400"
                   />
                 </button>
               </div>
@@ -185,7 +185,7 @@ function FontPickerBody({
           if (items.length === 0) return null
           return (
             <div key={cat} className="mb-2">
-              <div className="px-2 py-1 text-[10px] uppercase tracking-wider text-neutral-500">
+              <div className="px-2 py-1 text-[10px] uppercase tracking-wider text-ink-4">
                 {CATEGORY_LABELS[cat]}
               </div>
               {items.map((f) => (
@@ -198,12 +198,12 @@ function FontPickerBody({
                   }}
                   className={cn(
                     'flex w-full items-center justify-between rounded px-2 py-1.5 text-left',
-                    value === f.family ? 'bg-neutral-800' : 'hover:bg-neutral-900',
+                    value === f.family ? 'bg-surface-3' : 'hover:bg-surface-2',
                   )}
                 >
                   <span
                     style={{ fontFamily: f.family, fontWeight: f.weights.includes(700) ? 700 : 400 }}
-                    className="text-sm text-neutral-100"
+                    className="text-sm text-ink"
                   >
                     {f.family}
                   </span>
@@ -216,9 +216,9 @@ function FontPickerBody({
           )
         })}
       </div>
-      <div className="border-t border-neutral-800 p-2">
+      <div className="border-t border-line p-2">
         <div className="mb-1 flex items-center justify-between">
-          <span className="text-[10px] uppercase tracking-wider text-neutral-500">
+          <span className="text-[10px] uppercase tracking-wider text-ink-4">
             Add a font
           </span>
           <button
@@ -255,7 +255,7 @@ function FontPickerBody({
             onKeyDown={(e) => {
               if (e.key === 'Enter') handleCustom()
             }}
-            className="flex-1 rounded bg-neutral-900 px-2 py-1 text-xs text-neutral-200 outline-none"
+            className="flex-1 rounded bg-surface-2 px-2 py-1 text-xs text-ink outline-none"
           />
           <button
             type="button"

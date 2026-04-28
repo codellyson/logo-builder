@@ -114,7 +114,7 @@ export function LayerThumbnail({ node, size = 24 }: Props) {
 
   return (
     <div
-      className="flex shrink-0 items-center justify-center overflow-hidden rounded bg-neutral-800"
+      className="flex shrink-0 items-center justify-center overflow-hidden rounded bg-surface-3"
       style={{ width: size, height: size }}
     >
       {cleaned && (

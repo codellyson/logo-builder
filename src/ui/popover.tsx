@@ -81,7 +81,7 @@ export function Popover({ trigger, children, align = 'start', side = 'bottom', c
               opacity: pos ? 1 : 0,
             }}
             className={cn(
-              'z-50 rounded-md border border-neutral-800 bg-neutral-950 shadow-xl',
+              'z-50 rounded-md border border-line bg-surface shadow-xl',
               className,
             )}
           >

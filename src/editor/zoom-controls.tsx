@@ -15,11 +15,11 @@ export function ZoomControls() {
   }
 
   return (
-    <div className="pointer-events-auto flex items-center gap-1 rounded-md border border-neutral-800 bg-neutral-950/95 p-1 shadow-lg backdrop-blur">
+    <div className="pointer-events-auto flex items-center gap-1 rounded-md border border-line bg-surface/95 p-1 shadow-lg backdrop-blur">
       <button
         type="button"
         onClick={() => zoom(0.8)}
-        className="flex h-7 w-7 items-center justify-center rounded text-neutral-400 hover:bg-neutral-800 hover:text-neutral-100"
+        className="flex h-7 w-7 items-center justify-center rounded text-ink-3 hover:bg-surface-3 hover:text-ink"
         title="Zoom out"
       >
         <Icon icon="lucide:minus" width={13} height={13} />
@@ -27,7 +27,7 @@ export function ZoomControls() {
       <button
         type="button"
         onClick={fit}
-        className="min-w-[52px] rounded px-2 py-1 text-center text-[11px] text-neutral-300 hover:bg-neutral-800"
+        className="min-w-[52px] rounded px-2 py-1 text-center text-[11px] text-ink-2 hover:bg-surface-3"
         title="Reset view"
       >
         {Math.round(viewport.scale * 100)}%
@@ -35,7 +35,7 @@ export function ZoomControls() {
       <button
         type="button"
         onClick={() => zoom(1.25)}
-        className="flex h-7 w-7 items-center justify-center rounded text-neutral-400 hover:bg-neutral-800 hover:text-neutral-100"
+        className="flex h-7 w-7 items-center justify-center rounded text-ink-3 hover:bg-surface-3 hover:text-ink"
         title="Zoom in"
       >
         <Icon icon="lucide:plus" width={13} height={13} />

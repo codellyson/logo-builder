@@ -296,7 +296,7 @@ export function LayersPanel() {
     <div className="flex h-full flex-col">
       <div className="mt-2 flex-1 overflow-y-auto">
         {rows.length === 0 && (
-          <div className="px-3 py-6 text-xs text-neutral-600">
+          <div className="px-3 py-6 text-xs text-ink-4">
             No layers yet. Add a shape from the toolbar.
           </div>
         )}
@@ -328,8 +328,8 @@ export function LayersPanel() {
                 className={cn(
                   'group flex items-center gap-1.5 py-1 pr-2 text-xs',
                   'border-l-2 border-transparent',
-                  selected && 'border-indigo-400 bg-neutral-800/60',
-                  !selected && 'hover:bg-neutral-900',
+                  selected && 'border-indigo-400 bg-surface-3/60',
+                  !selected && 'hover:bg-surface-2',
                   dragId === node.id && 'opacity-40',
                 )}
               >
@@ -340,7 +340,7 @@ export function LayersPanel() {
                       e.stopPropagation()
                       setCollapsed(node.id, !collapsed)
                     }}
-                    className="flex h-4 w-4 shrink-0 items-center justify-center rounded text-neutral-500 hover:text-neutral-200"
+                    className="flex h-4 w-4 shrink-0 items-center justify-center rounded text-ink-4 hover:text-ink"
                   >
                     <Icon
                       icon={collapsed ? 'lucide:chevron-right' : 'lucide:chevron-down'}
@@ -357,7 +357,7 @@ export function LayersPanel() {
                     e.stopPropagation()
                     setHidden(node.id, !node.hidden)
                   }}
-                  className="flex h-6 w-6 shrink-0 items-center justify-center rounded text-neutral-500 hover:text-neutral-200"
+                  className="flex h-6 w-6 shrink-0 items-center justify-center rounded text-ink-4 hover:text-ink"
                   title={node.hidden ? 'Show' : 'Hide'}
                 >
                   <Icon icon={node.hidden ? 'lucide:eye-off' : 'lucide:eye'} width={13} height={13} />
@@ -368,13 +368,13 @@ export function LayersPanel() {
                     e.stopPropagation()
                     setLocked(node.id, !node.locked)
                   }}
-                  className="flex h-6 w-6 shrink-0 items-center justify-center rounded text-neutral-500 hover:text-neutral-200"
+                  className="flex h-6 w-6 shrink-0 items-center justify-center rounded text-ink-4 hover:text-ink"
                   title={node.locked ? 'Unlock' : 'Lock'}
                 >
                   <Icon icon={node.locked ? 'lucide:lock' : 'lucide:unlock'} width={13} height={13} />
                 </button>
                 {isGroup ? (
-                  <div className="flex h-[22px] w-[22px] shrink-0 items-center justify-center rounded bg-neutral-800 text-neutral-400">
+                  <div className="flex h-[22px] w-[22px] shrink-0 items-center justify-center rounded bg-surface-3 text-ink-3">
                     <Icon icon="lucide:folder" width={13} height={13} />
                   </div>
                 ) : isBoolean ? (
@@ -403,14 +403,14 @@ export function LayersPanel() {
                         setRenamingId(null)
                       }
                     }}
-                    className="flex-1 rounded bg-neutral-800 px-1 py-0.5 text-xs text-neutral-100 outline-none"
+                    className="flex-1 rounded bg-surface-3 px-1 py-0.5 text-xs text-ink outline-none"
                     onMouseDown={(e) => e.stopPropagation()}
                   />
                 ) : (
                   <span
                     className={cn(
                       'flex-1 cursor-text truncate',
-                      isContainer ? 'font-medium text-neutral-200' : 'text-neutral-300',
+                      isContainer ? 'font-medium text-ink' : 'text-ink-2',
                     )}
                     onDoubleClick={(e) => {
                       e.stopPropagation()
@@ -434,7 +434,7 @@ export function LayersPanel() {
                     e.stopPropagation()
                     removeNodes([node.id])
                   }}
-                  className="flex h-6 w-6 shrink-0 items-center justify-center rounded text-neutral-500 opacity-0 hover:text-red-400 group-hover:opacity-100"
+                  className="flex h-6 w-6 shrink-0 items-center justify-center rounded text-ink-4 opacity-0 hover:text-red-400 group-hover:opacity-100"
                   title="Delete"
                 >
                   <Icon icon="lucide:trash-2" width={13} height={13} />

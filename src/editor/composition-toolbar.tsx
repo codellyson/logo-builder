@@ -164,7 +164,7 @@ export function CompositionToolbar() {
   }
 
   return (
-    <div className="pointer-events-auto flex gap-1 rounded-md border border-neutral-800 bg-neutral-950/95 p-1 shadow-lg backdrop-blur">
+    <div className="pointer-events-auto flex gap-1 rounded-md border border-line bg-surface/95 p-1 shadow-lg backdrop-blur">
       <Tool icon="lucide:git-merge" title="Union" disabled={!canBool} onClick={() => runBoolean('unite')} />
       <Tool
         icon="lucide:git-branch"
@@ -184,7 +184,7 @@ export function CompositionToolbar() {
         disabled={!canBool}
         onClick={() => runBoolean('exclude')}
       />
-      <div className="mx-0.5 w-px bg-neutral-800" />
+      <div className="mx-0.5 w-px bg-surface-3" />
       <Tool
         icon="lucide:spline"
         title="Convert to Path"
@@ -225,9 +225,9 @@ function Tool({
       disabled={disabled}
       onClick={onClick}
       className={cn(
-        'flex h-8 w-8 items-center justify-center rounded text-neutral-400',
-        'hover:bg-neutral-800 hover:text-neutral-100',
-        'disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-neutral-400',
+        'flex h-8 w-8 items-center justify-center rounded text-ink-3',
+        'hover:bg-surface-3 hover:text-ink',
+        'disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-ink-3',
       )}
     >
       <Icon icon={icon} width={15} height={15} />

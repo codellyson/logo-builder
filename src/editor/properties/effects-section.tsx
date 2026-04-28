@@ -68,11 +68,11 @@ export function EffectsSection({ node }: { node: CanvasNode }) {
   const effects = node.effects ?? []
 
   return (
-    <div className="space-y-2 border-t border-neutral-800 pt-3">
+    <div className="space-y-2 border-t border-line pt-3">
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="flex w-full items-center justify-between text-[10px] font-medium uppercase tracking-wider text-neutral-500 hover:text-neutral-300"
+        className="flex w-full items-center justify-between text-[10px] font-medium uppercase tracking-wider text-ink-4 hover:text-ink-2"
       >
         <span>Effects</span>
         <Icon
@@ -84,7 +84,7 @@ export function EffectsSection({ node }: { node: CanvasNode }) {
       {open && (
         <div className="space-y-1.5">
           {countShadowLike(effects) > 1 && (
-            <div className="rounded border border-neutral-800 bg-neutral-900/50 px-2 py-1.5 text-[10px] text-neutral-500">
+            <div className="rounded border border-line bg-surface-2/50 px-2 py-1.5 text-[10px] text-ink-4">
               Canvas previews the topmost shadow / glow only. SVG export
               composes all enabled effects.
             </div>
@@ -105,7 +105,7 @@ export function EffectsSection({ node }: { node: CanvasNode }) {
             trigger={
               <button
                 type="button"
-                className="flex w-full items-center justify-center gap-1 rounded border border-dashed border-neutral-800 px-2 py-1 text-[11px] text-neutral-500 hover:border-neutral-700 hover:text-neutral-300"
+                className="flex w-full items-center justify-center gap-1 rounded border border-dashed border-line px-2 py-1 text-[11px] text-ink-4 hover:border-line-strong hover:text-ink-2"
               >
                 <Icon icon="lucide:plus" width={11} height={11} />
                 Add effect
@@ -123,7 +123,7 @@ export function EffectsSection({ node }: { node: CanvasNode }) {
                       addEffect(node.id, makeEffect(type))
                       close()
                     }}
-                    className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-xs text-neutral-200 hover:bg-neutral-800"
+                    className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-xs text-ink hover:bg-surface-3"
                   >
                     <Icon icon={EFFECT_ICONS[type]} width={12} height={12} />
                     {EFFECT_LABELS[type]}
@@ -152,7 +152,7 @@ function EffectRow({
   return (
     <div
       className={cn(
-        'rounded border border-neutral-800 bg-neutral-900/40',
+        'rounded border border-line bg-surface-2/40',
         !effect.enabled && 'opacity-50',
       )}
     >
@@ -161,7 +161,7 @@ function EffectRow({
           type="button"
           onClick={onToggle}
           title={effect.enabled ? 'Disable' : 'Enable'}
-          className="flex h-4 w-4 shrink-0 items-center justify-center rounded text-neutral-500 hover:text-neutral-200"
+          className="flex h-4 w-4 shrink-0 items-center justify-center rounded text-ink-4 hover:text-ink"
         >
           <Icon
             icon={effect.enabled ? 'lucide:eye' : 'lucide:eye-off'}
@@ -169,15 +169,15 @@ function EffectRow({
             height={11}
           />
         </button>
-        <Icon icon={EFFECT_ICONS[effect.type]} width={12} height={12} className="text-neutral-500" />
-        <span className="flex-1 truncate text-[11px] text-neutral-300">
+        <Icon icon={EFFECT_ICONS[effect.type]} width={12} height={12} className="text-ink-4" />
+        <span className="flex-1 truncate text-[11px] text-ink-2">
           {EFFECT_LABELS[effect.type]}
         </span>
         <button
           type="button"
           onClick={onRemove}
           title="Remove"
-          className="flex h-4 w-4 shrink-0 items-center justify-center rounded text-neutral-500 hover:text-red-400"
+          className="flex h-4 w-4 shrink-0 items-center justify-center rounded text-ink-4 hover:text-red-400"
         >
           <Icon icon="lucide:trash-2" width={11} height={11} />
         </button>
@@ -203,7 +203,7 @@ function BlurEditor({
   onPatch: (patch: Partial<BlurEffect>) => void
 }) {
   return (
-    <div className="space-y-2 border-t border-neutral-800 px-2 py-2">
+    <div className="space-y-2 border-t border-line px-2 py-2">
       <FieldRow label="Radius">
         <NumberField
           value={effect.radius}
@@ -224,7 +224,7 @@ function OuterGlowEditor({
   onPatch: (patch: Partial<OuterGlowEffect>) => void
 }) {
   return (
-    <div className="space-y-2 border-t border-neutral-800 px-2 py-2">
+    <div className="space-y-2 border-t border-line px-2 py-2">
       <FieldRow label="Blur">
         <NumberField
           value={effect.blur}
@@ -259,7 +259,7 @@ function DropShadowEditor({
   onPatch: (patch: Partial<DropShadowEffect>) => void
 }) {
   return (
-    <div className="space-y-2 border-t border-neutral-800 px-2 py-2">
+    <div className="space-y-2 border-t border-line px-2 py-2">
       <div className="grid grid-cols-2 gap-2">
         <FieldRow label="Offset X">
           <NumberField

@@ -25,7 +25,7 @@ export function AlignToolbar() {
   const canDistribute = selectedIds.length >= 3
 
   return (
-    <div className="pointer-events-auto flex gap-1 rounded-md border border-neutral-800 bg-neutral-950/95 p-1 shadow-lg backdrop-blur">
+    <div className="pointer-events-auto flex gap-1 rounded-md border border-line bg-surface/95 p-1 shadow-lg backdrop-blur">
       {ALIGN_ITEMS.map((it) => (
         <button
           key={it.edge}
@@ -41,7 +41,7 @@ export function AlignToolbar() {
           <Icon icon={it.icon} width={15} height={15} />
         </button>
       ))}
-      <div className="mx-0.5 w-px bg-neutral-800" />
+      <div className="mx-0.5 w-px bg-surface-3" />
       {DISTRIBUTE_ITEMS.map((it) => (
         <button
           key={it.axis}
@@ -60,8 +60,8 @@ export function AlignToolbar() {
 
 function toolClass() {
   return cn(
-    'flex h-8 w-8 items-center justify-center rounded text-neutral-400',
-    'hover:bg-neutral-800 hover:text-neutral-100',
-    'disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-neutral-400',
+    'flex h-8 w-8 items-center justify-center rounded text-ink-3',
+    'hover:bg-surface-3 hover:text-ink',
+    'disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-ink-3',
   )
 }

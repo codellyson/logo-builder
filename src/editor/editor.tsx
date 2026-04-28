@@ -76,14 +76,14 @@ export function Editor() {
 
   if (!bootReady) {
     return (
-      <div className="flex h-screen w-screen items-center justify-center bg-neutral-950 text-xs text-neutral-500">
+      <div className="flex h-screen w-screen items-center justify-center bg-surface text-xs text-ink-4">
         Loading…
       </div>
     )
   }
 
   return (
-    <div className="flex h-screen w-screen flex-col bg-neutral-950 text-neutral-100">
+    <div className="flex h-screen w-screen flex-col bg-surface text-ink">
       <EditorHeader
         onOpenExport={() => setExportOpen(true)}
         onOpenProjects={() => setProjectsOpen(true)}
@@ -104,10 +104,10 @@ export function Editor() {
         {templatesOpen && <TemplatesModal onClose={() => setTemplatesOpen(false)} />}
       </Suspense>
       <div className="flex flex-1 overflow-hidden">
-        <aside className="w-64 shrink-0 border-r border-neutral-800 bg-neutral-950">
+        <aside className="w-64 shrink-0 border-r border-line bg-surface">
           <LeftSidebar />
         </aside>
-        <main className="relative flex-1 overflow-hidden bg-neutral-900">
+        <main className="relative flex-1 overflow-hidden bg-[#2a2a2a]">
           <EditorCanvas />
           <DraggablePanel name="toolbar" defaultStyle={{ position: 'absolute', left: 12, top: 12 }}>
             <Toolbar />
@@ -130,7 +130,7 @@ export function Editor() {
           </DraggablePanel>
           {!hasNodes && <EmptyState />}
         </main>
-        <aside className="flex w-72 shrink-0 flex-col border-l border-neutral-800 bg-neutral-950">
+        <aside className="flex w-72 shrink-0 flex-col border-l border-line bg-surface">
           <div className="flex-1 overflow-hidden">
             <PropertiesPanel />
           </div>

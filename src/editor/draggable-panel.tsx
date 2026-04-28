@@ -138,7 +138,7 @@ export function DraggablePanel({ name, defaultStyle, className, children }: Prop
         // Hover-revealed grip — sits above the panel so it doesn't fight
         // the panel's own padding/border. Visible on hover or while
         // actively dragging (the parent group:hover style covers both).
-        className="absolute -top-3 left-1/2 flex h-5 w-7 -translate-x-1/2 cursor-grab items-center justify-center rounded-t-md border border-b-0 border-neutral-800 bg-neutral-950/95 text-neutral-500 opacity-0 shadow-md transition-opacity hover:text-neutral-200 active:cursor-grabbing group-hover:opacity-100"
+        className="absolute -top-3 left-1/2 flex h-5 w-7 -translate-x-1/2 cursor-grab items-center justify-center rounded-t-md border border-b-0 border-line bg-surface/95 text-ink-4 opacity-0 shadow-md transition-opacity hover:text-ink active:cursor-grabbing group-hover:opacity-100"
       >
         <Icon icon="lucide:grip-horizontal" width={12} height={12} />
       </button>

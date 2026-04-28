@@ -40,18 +40,18 @@ export function TemplatesModal({ onClose }: Props) {
         if (e.target === e.currentTarget) onClose()
       }}
     >
-      <div className="flex w-full max-w-3xl flex-col overflow-hidden rounded-lg border border-neutral-800 bg-neutral-950">
-        <div className="flex items-center justify-between border-b border-neutral-800 px-4 py-3">
+      <div className="flex w-full max-w-3xl flex-col overflow-hidden rounded-lg border border-line bg-surface">
+        <div className="flex items-center justify-between border-b border-line px-4 py-3">
           <div>
             <div className="text-sm font-medium">Start from a template</div>
-            <div className="text-xs text-neutral-500">
+            <div className="text-xs text-ink-4">
               Pick a starting point and we'll set up a new project for you.
             </div>
           </div>
           <button
             type="button"
             onClick={onClose}
-            className="flex h-8 w-8 items-center justify-center rounded text-neutral-400 hover:bg-neutral-800 hover:text-neutral-100"
+            className="flex h-8 w-8 items-center justify-center rounded text-ink-3 hover:bg-surface-3 hover:text-ink"
           >
             <Icon icon="lucide:x" width={16} height={16} />
           </button>
@@ -71,33 +71,33 @@ export function TemplatesModal({ onClose }: Props) {
           </div>
           <div className="flex flex-col gap-3">
             <div>
-              <div className="mb-1 text-[10px] uppercase tracking-wider text-neutral-500">
+              <div className="mb-1 text-[10px] uppercase tracking-wider text-ink-4">
                 Brand name
               </div>
               <input
                 value={brandName}
                 onChange={(e) => setBrandName(e.target.value)}
                 placeholder="Your brand"
-                className="w-full rounded border border-neutral-800 bg-neutral-900 px-2 py-1.5 text-sm text-neutral-100 outline-none focus:border-neutral-600"
+                className="w-full rounded border border-line bg-surface-2 px-2 py-1.5 text-sm text-ink outline-none focus:border-neutral-600"
               />
             </div>
             <div>
-              <div className="mb-1 text-[10px] uppercase tracking-wider text-neutral-500">
+              <div className="mb-1 text-[10px] uppercase tracking-wider text-ink-4">
                 Seed color
               </div>
               <input
                 type="color"
                 value={paletteSeed}
                 onChange={(e) => setPaletteSeed(e.target.value)}
-                className="h-8 w-full rounded border border-neutral-800 bg-neutral-900"
+                className="h-8 w-full rounded border border-line bg-surface-2"
               />
-              <div className="mt-1 text-[10px] text-neutral-600">
+              <div className="mt-1 text-[10px] text-ink-4">
                 The palette regenerates from this seed.
               </div>
             </div>
             {selected && (
-              <div className="rounded border border-neutral-800 bg-neutral-900/50 px-2 py-2 text-[11px] text-neutral-400">
-                <div className="font-medium text-neutral-200">{selected.name}</div>
+              <div className="rounded border border-line bg-surface-2/50 px-2 py-2 text-[11px] text-ink-3">
+                <div className="font-medium text-ink">{selected.name}</div>
                 <div className="mt-0.5">{selected.description}</div>
               </div>
             )}
@@ -160,7 +160,7 @@ function TemplateTile({
     >
       <div
         className={`flex aspect-square items-center justify-center overflow-hidden rounded border-2 transition-colors ${
-          selected ? 'border-indigo-400' : 'border-neutral-800 group-hover:border-neutral-700'
+          selected ? 'border-indigo-400' : 'border-line group-hover:border-line-strong'
         }`}
         style={{ background: '#ffffff' }}
       >
@@ -175,11 +175,11 @@ function TemplateTile({
             icon="lucide:loader"
             width={14}
             height={14}
-            className="animate-spin text-neutral-400"
+            className="animate-spin text-ink-3"
           />
         )}
       </div>
-      <div className="truncate text-[11px] text-neutral-300">{template.name}</div>
+      <div className="truncate text-[11px] text-ink-2">{template.name}</div>
     </button>
   )
 }

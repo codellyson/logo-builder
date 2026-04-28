@@ -9,6 +9,7 @@ import {
   renameActiveProject,
 } from '@/state/active-project-actions'
 import { snapshotFromStore } from '@/state/autosave'
+import { useTheme, toggleTheme } from '@/state/theme'
 import { Popover } from '@/ui/popover'
 import { useStore } from 'zustand'
 import { cn } from '@/lib/cn'
@@ -33,9 +34,10 @@ export function EditorHeader({ onOpenExport, onOpenProjects, canExport }: Header
   const futureStates = useStore(useCanvasStore.temporal, (s) => s.futureStates)
   const canUndo = pastStates.length > 0
   const canRedo = futureStates.length > 0
+  const theme = useTheme()
 
   return (
-    <header className="flex h-12 shrink-0 items-center justify-between border-b border-neutral-800 bg-neutral-950 px-4">
+    <header className="flex h-12 shrink-0 items-center justify-between border-b border-line bg-surface px-4">
       <div className="flex items-center gap-3">
         <div className="h-5 w-5 rounded-sm bg-gradient-to-br from-fuchsia-500 to-indigo-500" />
         <span className="text-sm font-medium tracking-tight">Builty</span>
@@ -54,6 +56,11 @@ export function EditorHeader({ onOpenExport, onOpenProjects, canExport }: Header
           title="Redo"
           disabled={!canRedo}
           onClick={() => useCanvasStore.temporal.getState().redo()}
+        />
+        <HeaderButton
+          icon={theme === 'dark' ? 'lucide:sun' : 'lucide:moon'}
+          title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+          onClick={toggleTheme}
         />
       </div>
 
@@ -120,7 +127,7 @@ function ActiveProjectChip({ onOpenAll }: { onOpenAll?: () => void }) {
             setRenaming(false)
           }
         }}
-        className="ml-2 w-44 rounded border border-neutral-700 bg-neutral-900 px-2 py-1 text-xs text-neutral-100 outline-none focus:border-neutral-500"
+        className="ml-2 w-44 rounded border border-line-strong bg-surface-2 px-2 py-1 text-xs text-ink outline-none focus:border-neutral-500"
       />
     )
   }
@@ -132,7 +139,7 @@ function ActiveProjectChip({ onOpenAll }: { onOpenAll?: () => void }) {
       trigger={
         <button
           type="button"
-          className="ml-2 flex max-w-[14rem] items-center gap-1 rounded px-2 py-1 text-xs text-neutral-300 hover:bg-neutral-800 hover:text-neutral-100"
+          className="ml-2 flex max-w-[14rem] items-center gap-1 rounded px-2 py-1 text-xs text-ink-2 hover:bg-surface-3 hover:text-ink"
           title={name}
         >
           <span className="truncate">{name}</span>
@@ -268,8 +275,8 @@ function MenuItem({
       className={cn(
         'flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-xs',
         danger
-          ? 'text-neutral-400 hover:bg-red-500/10 hover:text-red-300'
-          : 'text-neutral-300 hover:bg-neutral-800 hover:text-neutral-100',
+          ? 'text-ink-3 hover:bg-red-500/10 hover:text-red-300'
+          : 'text-ink-2 hover:bg-surface-3 hover:text-ink',
       )}
     >
       <Icon icon={icon} width={13} height={13} />
@@ -279,7 +286,7 @@ function MenuItem({
 }
 
 function MenuDivider() {
-  return <div className="my-1 border-t border-neutral-800" />
+  return <div className="my-1 border-t border-line" />
 }
 
 function HeaderButton({
@@ -300,9 +307,9 @@ function HeaderButton({
       onClick={onClick}
       disabled={disabled}
       className={cn(
-        'flex h-7 w-7 items-center justify-center rounded text-neutral-400',
-        'hover:bg-neutral-800 hover:text-neutral-100',
-        'disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-neutral-400',
+        'flex h-7 w-7 items-center justify-center rounded text-ink-3',
+        'hover:bg-surface-3 hover:text-ink',
+        'disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-ink-3',
       )}
     >
       <Icon icon={icon} width={15} height={15} />

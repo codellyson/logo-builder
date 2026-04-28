@@ -44,11 +44,11 @@ export function ContextMenu({ x, y, items, onClose }: Props) {
     <div
       ref={ref}
       style={{ position: 'fixed', left, top, zIndex: 60, width: menuW }}
-      className="rounded-md border border-neutral-800 bg-neutral-950 py-1 shadow-xl"
+      className="rounded-md border border-line bg-surface py-1 shadow-xl"
     >
       {items.map((it, i) => {
         if (it.kind === 'separator') {
-          return <div key={i} className="my-1 border-t border-neutral-800" />
+          return <div key={i} className="my-1 border-t border-line" />
         }
         return (
           <button
@@ -61,14 +61,14 @@ export function ContextMenu({ x, y, items, onClose }: Props) {
             }}
             className={cn(
               'flex w-full items-center gap-2 px-3 py-1 text-left text-xs',
-              it.danger ? 'text-red-400 hover:bg-red-500/20' : 'text-neutral-200 hover:bg-neutral-800',
+              it.danger ? 'text-red-400 hover:bg-red-500/20' : 'text-ink hover:bg-surface-3',
               it.disabled && 'cursor-not-allowed opacity-40 hover:bg-transparent',
             )}
           >
             {it.icon && <Icon icon={it.icon} width={12} height={12} />}
             <span className="flex-1">{it.label}</span>
             {it.shortcut && (
-              <span className="font-mono text-[10px] text-neutral-500">{it.shortcut}</span>
+              <span className="font-mono text-[10px] text-ink-4">{it.shortcut}</span>
             )}
           </button>
         )

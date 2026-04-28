@@ -45,7 +45,7 @@ export function StopBar({
     <div className="space-y-1">
       <div
         ref={barRef}
-        className="relative h-6 cursor-copy overflow-visible rounded border border-neutral-700"
+        className="relative h-6 cursor-copy overflow-visible rounded border border-line-strong"
         style={{ background: css }}
         onMouseDown={(e) => {
           // Markers stop propagation, so this only fires for bar-bg clicks.
@@ -67,7 +67,7 @@ export function StopBar({
           />
         ))}
       </div>
-      <div className="text-[10px] text-neutral-600">
+      <div className="text-[10px] text-ink-4">
         Click bar to add · Alt-click marker to delete
       </div>
     </div>

@@ -66,7 +66,7 @@ export function FillEditor({ value, onChange, bbox, allowNone }: Props) {
         />
       )}
       {kind === 'none' && (
-        <div className="text-[10px] text-neutral-600">No fill.</div>
+        <div className="text-[10px] text-ink-4">No fill.</div>
       )}
     </div>
   )
@@ -140,7 +140,7 @@ function GradientStopList({
         <button
           type="button"
           onClick={reverse}
-          className="flex flex-1 items-center justify-center gap-1 rounded border border-neutral-800 bg-neutral-900 px-2 py-1 text-[11px] text-neutral-400 hover:bg-neutral-800 hover:text-neutral-200"
+          className="flex flex-1 items-center justify-center gap-1 rounded border border-line bg-surface-2 px-2 py-1 text-[11px] text-ink-3 hover:bg-surface-3 hover:text-ink"
         >
           <Icon icon="lucide:arrow-left-right" width={12} height={12} />
           Reverse
@@ -148,7 +148,7 @@ function GradientStopList({
         <button
           type="button"
           onClick={addStopHalfway}
-          className="flex flex-1 items-center justify-center gap-1 rounded border border-dashed border-neutral-700 bg-neutral-900/50 px-2 py-1 text-[11px] text-neutral-400 hover:border-neutral-600 hover:text-neutral-200"
+          className="flex flex-1 items-center justify-center gap-1 rounded border border-dashed border-line-strong bg-surface-2/50 px-2 py-1 text-[11px] text-ink-3 hover:border-neutral-600 hover:text-ink"
         >
           <Icon icon="lucide:plus" width={12} height={12} />
           Add stop
@@ -199,7 +199,7 @@ function StopRow({
         type="button"
         onClick={onRemove}
         disabled={!removable}
-        className="flex h-6 w-6 shrink-0 items-center justify-center rounded text-neutral-500 hover:bg-neutral-800 hover:text-neutral-300 disabled:cursor-not-allowed disabled:opacity-30"
+        className="flex h-6 w-6 shrink-0 items-center justify-center rounded text-ink-4 hover:bg-surface-3 hover:text-ink-2 disabled:cursor-not-allowed disabled:opacity-30"
         title="Remove stop"
       >
         <Icon icon="lucide:trash-2" width={12} height={12} />

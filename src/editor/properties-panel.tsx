@@ -67,7 +67,7 @@ export function PropertiesPanel() {
     if (node && node.type === 'path') {
       return (
         <div className="flex h-full flex-col overflow-y-auto">
-          <div className="px-3 pt-3 text-xs font-medium uppercase tracking-wider text-neutral-500">
+          <div className="px-3 pt-3 text-xs font-medium uppercase tracking-wider text-ink-4">
             Anchor
           </div>
           <div className="p-3">
@@ -84,7 +84,7 @@ export function PropertiesPanel() {
 
   return (
     <div className="flex h-full flex-col overflow-y-auto">
-      <div className="px-3 pt-3 text-xs font-medium uppercase tracking-wider text-neutral-500">
+      <div className="px-3 pt-3 text-xs font-medium uppercase tracking-wider text-ink-4">
         Properties
       </div>
       <div className="p-3">
@@ -105,7 +105,7 @@ function ArtboardEditor() {
 
   return (
     <div className="space-y-3">
-      <div className="text-[10px] uppercase tracking-wider text-neutral-500">Artboard</div>
+      <div className="text-[10px] uppercase tracking-wider text-ink-4">Artboard</div>
       <FieldRow label="Background">
         <ColorPicker
           value={artboardBackground}
@@ -128,7 +128,7 @@ function ArtboardEditor() {
           />
         </FieldRow>
       </div>
-      <div className="pt-1 text-[10px] text-neutral-600">
+      <div className="pt-1 text-[10px] text-ink-4">
         Select a layer to edit its properties.
       </div>
     </div>
@@ -137,7 +137,7 @@ function ArtboardEditor() {
 
 function MultiInfo({ count }: { count: number }) {
   return (
-    <div className="text-xs text-neutral-500">
+    <div className="text-xs text-ink-4">
       {count} layers selected. Use the Palette panel to apply colors in bulk.
     </div>
   )
@@ -168,7 +168,7 @@ function SingleEditor({ node }: { node: CanvasNode }) {
 function StarFields({ node }: { node: StarNode }) {
   const update = useCanvasStore((s) => s.updateNode)
   return (
-    <div className="space-y-2 border-t border-neutral-800 pt-3">
+    <div className="space-y-2 border-t border-line pt-3">
       <FieldRow label="Points">
         <NumberField
           value={node.points}
@@ -234,7 +234,7 @@ function StarFields({ node }: { node: StarNode }) {
 function PolygonFields({ node }: { node: PolygonNode }) {
   const update = useCanvasStore((s) => s.updateNode)
   return (
-    <div className="space-y-2 border-t border-neutral-800 pt-3">
+    <div className="space-y-2 border-t border-line pt-3">
       <div className="grid grid-cols-2 gap-2">
         <FieldRow label="Sides">
           <NumberField
@@ -312,7 +312,7 @@ function AnchorFields({
 
   return (
     <div className="space-y-2">
-      <div className="text-[10px] text-neutral-500">
+      <div className="text-[10px] text-ink-4">
         {indices.length} anchor{indices.length === 1 ? '' : 's'} selected
       </div>
       <FieldRow label="Style">
@@ -327,9 +327,9 @@ function AnchorFields({
         />
       </FieldRow>
       {!uniform && (
-        <div className="text-[10px] text-neutral-600">Selected anchors have mixed styles.</div>
+        <div className="text-[10px] text-ink-4">Selected anchors have mixed styles.</div>
       )}
-      <div className="pt-2 text-[10px] text-neutral-600">
+      <div className="pt-2 text-[10px] text-ink-4">
         Shortcuts: 1 Corner · 2 Smooth · 3 Cusp
       </div>
     </div>
@@ -342,7 +342,7 @@ function BooleanFields({ node }: { node: BooleanNode }) {
   const flattenBoolean = useCanvasStore((s) => s.flattenBoolean)
   const canFlatten = !!node.cache && !!node.cache.data
   return (
-    <div className="space-y-2 border-t border-neutral-800 pt-3">
+    <div className="space-y-2 border-t border-line pt-3">
       <FieldRow label="Op">
         <Segmented<BooleanOp>
           value={node.op}
@@ -393,7 +393,7 @@ function BooleanFields({ node }: { node: BooleanNode }) {
         type="button"
         onClick={() => flattenBoolean(node.id)}
         disabled={!canFlatten}
-        className="w-full rounded border border-neutral-700 px-2 py-1.5 text-xs text-neutral-300 hover:bg-neutral-800 disabled:cursor-not-allowed disabled:opacity-40"
+        className="w-full rounded border border-line-strong px-2 py-1.5 text-xs text-ink-2 hover:bg-surface-3 disabled:cursor-not-allowed disabled:opacity-40"
       >
         Flatten to Path
       </button>
@@ -404,7 +404,7 @@ function BooleanFields({ node }: { node: BooleanNode }) {
 function PathFields({ node }: { node: PathNode }) {
   const update = useCanvasStore((s) => s.updateNode)
   return (
-    <div className="space-y-2 border-t border-neutral-800 pt-3">
+    <div className="space-y-2 border-t border-line pt-3">
       <FieldRow label="Fill">
         <FillEditor
           value={node.fill}
@@ -518,7 +518,7 @@ function CommonFields({ node }: { node: CanvasNode }) {
         <select
           value={node.blendMode ?? 'source-over'}
           onChange={(e) => update(node.id, { blendMode: e.target.value as BlendMode })}
-          className="w-full rounded border border-neutral-800 bg-neutral-900 px-2 py-1 text-xs text-neutral-200 outline-none focus:border-neutral-600"
+          className="w-full rounded border border-line bg-surface-2 px-2 py-1 text-xs text-ink outline-none focus:border-neutral-600"
         >
           {BLEND_MODES.map((m) => (
             <option key={m} value={m}>
@@ -534,7 +534,7 @@ function CommonFields({ node }: { node: CanvasNode }) {
 function RectFields({ node }: { node: RectNode }) {
   const update = useCanvasStore((s) => s.updateNode)
   return (
-    <div className="space-y-2 border-t border-neutral-800 pt-3">
+    <div className="space-y-2 border-t border-line pt-3">
       <div className="grid grid-cols-2 gap-2">
         <FieldRow label="Width">
           <NumberField value={node.width} min={1} onCommit={(n) => update(node.id, { width: n })} />
@@ -591,7 +591,7 @@ function RectFields({ node }: { node: RectNode }) {
 function EllipseFields({ node }: { node: EllipseNode }) {
   const update = useCanvasStore((s) => s.updateNode)
   return (
-    <div className="space-y-2 border-t border-neutral-800 pt-3">
+    <div className="space-y-2 border-t border-line pt-3">
       <div className="grid grid-cols-2 gap-2">
         <FieldRow label="Radius X">
           <NumberField value={node.radiusX} min={1} onCommit={(n) => update(node.id, { radiusX: n })} />
@@ -632,7 +632,7 @@ function EllipseFields({ node }: { node: EllipseNode }) {
 function LineFields({ node }: { node: LineNode }) {
   const update = useCanvasStore((s) => s.updateNode)
   return (
-    <div className="space-y-2 border-t border-neutral-800 pt-3">
+    <div className="space-y-2 border-t border-line pt-3">
       <FieldRow label="Stroke">
         <FillEditor
           value={node.stroke}
@@ -668,7 +668,7 @@ function LineFields({ node }: { node: LineNode }) {
 function TextFields({ node }: { node: TextNode }) {
   const update = useCanvasStore((s) => s.updateNode)
   return (
-    <div className="space-y-2 border-t border-neutral-800 pt-3">
+    <div className="space-y-2 border-t border-line pt-3">
       <FieldRow label="Text">
         <TextAreaField value={node.text} onCommit={(v) => update(node.id, { text: v })} />
       </FieldRow>
@@ -732,7 +732,7 @@ function TextFields({ node }: { node: TextNode }) {
 function IconFields({ node }: { node: IconNode }) {
   const update = useCanvasStore((s) => s.updateNode)
   return (
-    <div className="space-y-2 border-t border-neutral-800 pt-3">
+    <div className="space-y-2 border-t border-line pt-3">
       <FieldRow label="Icon">
         <IconPicker
           value={node.iconName}
@@ -748,7 +748,7 @@ function IconFields({ node }: { node: IconNode }) {
         />
       </FieldRow>
       {node.fill.type !== 'solid' && (
-        <div className="rounded border border-neutral-800 bg-neutral-900/50 px-2 py-1.5 text-[10px] text-neutral-500">
+        <div className="rounded border border-line bg-surface-2/50 px-2 py-1.5 text-[10px] text-ink-4">
           Gradient on icons recolors all paths — multi-color icons collapse
           to a single ramp.
         </div>
@@ -872,8 +872,8 @@ function AssetFields({ node }: { node: AssetNode }) {
   }
 
   return (
-    <div className="space-y-2 border-t border-neutral-800 pt-3">
-      <div className="flex items-center justify-between text-[11px] text-neutral-500">
+    <div className="space-y-2 border-t border-line pt-3">
+      <div className="flex items-center justify-between text-[11px] text-ink-4">
         <span className="truncate">
           {asset ? asset.name : missing ? 'Missing asset' : 'Loading…'}
         </span>
@@ -915,7 +915,7 @@ function AssetFields({ node }: { node: AssetNode }) {
             <Icon icon="lucide:spline" width={12} height={12} />
             {busy ? 'Converting…' : 'Convert to editable path'}
           </button>
-          <div className="rounded border border-neutral-800 bg-neutral-900/50 px-2 py-1.5 text-[10px] text-neutral-500">
+          <div className="rounded border border-line bg-surface-2/50 px-2 py-1.5 text-[10px] text-ink-4">
             Each path becomes its own editable layer (grouped). Strokes,
             gradients, and effects from the source aren't preserved.
           </div>
@@ -937,7 +937,7 @@ function LockupRoleField({ node }: { node: GroupNode | BooleanNode }) {
     update(node.id, { lockupRole: next ?? undefined } as Partial<GroupNode>)
   }
   return (
-    <div className="space-y-2 border-t border-neutral-800 pt-3">
+    <div className="space-y-2 border-t border-line pt-3">
       <FieldRow label="Lockup role">
         <Segmented
           value={current ?? 'none'}
@@ -949,7 +949,7 @@ function LockupRoleField({ node }: { node: GroupNode | BooleanNode }) {
           ]}
         />
       </FieldRow>
-      <div className="rounded border border-neutral-800 bg-neutral-900/50 px-2 py-1.5 text-[10px] text-neutral-500">
+      <div className="rounded border border-line bg-surface-2/50 px-2 py-1.5 text-[10px] text-ink-4">
         Tags this {node.type} so the icon-only / wordmark-only export
         variants land on the right shapes.
       </div>

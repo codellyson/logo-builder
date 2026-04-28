@@ -33,11 +33,11 @@ export function PalettePanel() {
   }
 
   return (
-    <div className="border-t border-neutral-800">
+    <div className="border-t border-line">
       <button
         type="button"
         onClick={() => setSeedOpen((v) => !v)}
-        className="flex w-full items-center justify-between px-3 py-2 text-xs font-medium uppercase tracking-wider text-neutral-500 hover:text-neutral-300"
+        className="flex w-full items-center justify-between px-3 py-2 text-xs font-medium uppercase tracking-wider text-ink-4 hover:text-ink-2"
       >
         <span>Palette</span>
         <Icon icon={seedOpen ? 'lucide:chevron-down' : 'lucide:chevron-right'} width={12} height={12} />
@@ -45,7 +45,7 @@ export function PalettePanel() {
       {seedOpen && (
         <div className="space-y-3 px-3 pb-3">
           <div>
-            <div className="mb-1 text-[10px] uppercase tracking-wider text-neutral-500">
+            <div className="mb-1 text-[10px] uppercase tracking-wider text-ink-4">
               Seed
             </div>
             <ColorPicker
@@ -56,8 +56,8 @@ export function PalettePanel() {
             />
           </div>
           <div>
-            <div className="mb-1 text-[10px] uppercase tracking-wider text-neutral-500">
-              Roles <span className="text-neutral-600">(click to apply)</span>
+            <div className="mb-1 text-[10px] uppercase tracking-wider text-ink-4">
+              Roles <span className="text-ink-4">(click to apply)</span>
             </div>
             <div className="space-y-1">
               {ROLE_ORDER.map((role) => (
@@ -65,11 +65,11 @@ export function PalettePanel() {
                   <button
                     type="button"
                     onClick={() => applyRoleToSelection(role)}
-                    className="h-6 w-6 shrink-0 rounded border border-neutral-800 hover:ring-1 hover:ring-neutral-400"
+                    className="h-6 w-6 shrink-0 rounded border border-line hover:ring-1 hover:ring-neutral-400"
                     style={{ background: palette[role] }}
                     title={`Apply ${ROLE_LABELS[role]} to selection`}
                   />
-                  <span className="flex-1 text-xs text-neutral-300">{ROLE_LABELS[role]}</span>
+                  <span className="flex-1 text-xs text-ink-2">{ROLE_LABELS[role]}</span>
                   <ColorPicker
                     value={palette[role]}
                     onChange={(hex) => {
@@ -83,7 +83,7 @@ export function PalettePanel() {
           <button
             type="button"
             onClick={() => setPalette(generatePalette(palette.seed))}
-            className="w-full rounded border border-neutral-800 bg-neutral-900 px-2 py-1.5 text-xs text-neutral-300 hover:bg-neutral-800"
+            className="w-full rounded border border-line bg-surface-2 px-2 py-1.5 text-xs text-ink-2 hover:bg-surface-3"
           >
             Regenerate from seed
           </button>
@@ -133,9 +133,9 @@ function PaletteLibrary({
   }
 
   return (
-    <div className="border-t border-neutral-800 pt-3">
+    <div className="border-t border-line pt-3">
       <div className="mb-2 flex items-center justify-between">
-        <span className="text-[10px] uppercase tracking-wider text-neutral-500">
+        <span className="text-[10px] uppercase tracking-wider text-ink-4">
           Library
         </span>
         <button
@@ -156,11 +156,11 @@ function PaletteLibrary({
             if (e.key === 'Enter') onSaveCommit(e.currentTarget.value)
             else if (e.key === 'Escape') setSavingName(null)
           }}
-          className="mb-2 w-full rounded bg-neutral-800 px-2 py-1 text-xs text-neutral-100 outline-none"
+          className="mb-2 w-full rounded bg-surface-3 px-2 py-1 text-xs text-ink outline-none"
         />
       )}
       {saved.length === 0 && savingName === null && (
-        <div className="px-1 py-2 text-[10px] text-neutral-600">
+        <div className="px-1 py-2 text-[10px] text-ink-4">
           Save the current palette to reuse it across projects.
         </div>
       )}
@@ -200,12 +200,12 @@ function SavedPaletteRow({
   onDelete: () => void
 }) {
   return (
-    <div className="group flex items-center gap-2 rounded px-1 py-1 hover:bg-neutral-900">
+    <div className="group flex items-center gap-2 rounded px-1 py-1 hover:bg-surface-2">
       <button
         type="button"
         onClick={onLoad}
         title="Load palette"
-        className="flex shrink-0 overflow-hidden rounded border border-neutral-800"
+        className="flex shrink-0 overflow-hidden rounded border border-line"
       >
         {ROLE_ORDER.map((role) => (
           <span
@@ -224,13 +224,13 @@ function SavedPaletteRow({
             if (e.key === 'Enter') onCommitRename(e.currentTarget.value)
             else if (e.key === 'Escape') onCancelRename()
           }}
-          className="flex-1 rounded bg-neutral-800 px-1 py-0.5 text-[11px] text-neutral-100 outline-none"
+          className="flex-1 rounded bg-surface-3 px-1 py-0.5 text-[11px] text-ink outline-none"
         />
       ) : (
         <button
           type="button"
           onClick={onLoad}
-          className="flex-1 truncate text-left text-[11px] text-neutral-300 hover:text-neutral-100"
+          className="flex-1 truncate text-left text-[11px] text-ink-2 hover:text-ink"
           title={record.name}
         >
           {record.name}
@@ -261,8 +261,8 @@ function RowBtn({
       onClick={onClick}
       title={title}
       className={cn(
-        'flex h-5 w-5 items-center justify-center rounded text-neutral-500',
-        danger ? 'hover:text-red-400' : 'hover:text-neutral-200',
+        'flex h-5 w-5 items-center justify-center rounded text-ink-4',
+        danger ? 'hover:text-red-400' : 'hover:text-ink',
       )}
     >
       <Icon icon={icon} width={11} height={11} />

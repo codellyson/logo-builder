@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { cn } from '@/lib/cn'
 
 export function FieldLabel({ children }: { children: React.ReactNode }) {
-  return <div className="mb-1 text-[10px] uppercase tracking-wider text-neutral-500">{children}</div>
+  return <div className="mb-1 text-[10px] uppercase tracking-wider text-ink-4">{children}</div>
 }
 
 export function FieldRow({ label, children }: { label: string; children: React.ReactNode }) {
@@ -15,7 +15,7 @@ export function FieldRow({ label, children }: { label: string; children: React.R
 }
 
 const inputCls =
-  'w-full rounded border border-neutral-800 bg-neutral-900 px-2 py-1 text-xs text-neutral-200 outline-none focus:border-neutral-600'
+  'w-full rounded border border-line bg-surface-2 px-2 py-1 text-xs text-ink outline-none focus:border-neutral-600'
 
 export function NumberField({
   value,
@@ -63,7 +63,7 @@ export function NumberField({
         className={cn(inputCls, suffix && 'pr-6')}
       />
       {suffix && (
-        <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-neutral-500">
+        <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-ink-4">
           {suffix}
         </span>
       )}
@@ -135,7 +135,7 @@ export function Slider01({
         onChange={(e) => onChange(Number(e.target.value))}
         className="flex-1"
       />
-      <span className="w-8 text-right font-mono text-[10px] text-neutral-400">
+      <span className="w-8 text-right font-mono text-[10px] text-ink-3">
         {Math.round(value * 100)}
       </span>
     </div>
@@ -152,7 +152,7 @@ export function Segmented<T extends string>({
   onChange: (v: T) => void
 }) {
   return (
-    <div className="flex rounded border border-neutral-800 bg-neutral-900 p-0.5">
+    <div className="flex rounded border border-line bg-surface-2 p-0.5">
       {options.map((o) => (
         <button
           key={o.value}
@@ -160,7 +160,7 @@ export function Segmented<T extends string>({
           onClick={() => onChange(o.value)}
           className={cn(
             'flex-1 rounded px-2 py-1 text-center text-[11px]',
-            value === o.value ? 'bg-neutral-700 text-neutral-100' : 'text-neutral-400 hover:text-neutral-200',
+            value === o.value ? 'bg-neutral-700 text-ink' : 'text-ink-3 hover:text-ink',
           )}
         >
           {o.label}

@@ -19,7 +19,7 @@ export function ColorPicker({ value, onChange, allowNone, label }: Props) {
       trigger={
         <button
           type="button"
-          className="flex items-center gap-2 rounded border border-neutral-800 bg-neutral-900 px-2 py-1 text-xs text-neutral-200 hover:border-neutral-700"
+          className="flex items-center gap-2 rounded border border-line bg-surface-2 px-2 py-1 text-xs text-ink hover:border-line-strong"
         >
           <Swatch color={value} />
           <span className="font-mono">{value ?? 'none'}</span>
@@ -55,9 +55,9 @@ function ColorPickerBody({ value, onChange, allowNone, label }: Props) {
 
   return (
     <div className="flex flex-col gap-3">
-      {label && <div className="text-[10px] uppercase tracking-wider text-neutral-500">{label}</div>}
+      {label && <div className="text-[10px] uppercase tracking-wider text-ink-4">{label}</div>}
       <div className="flex items-center gap-2">
-        <div className="h-10 w-10 rounded border border-neutral-800" style={{ background: hex }} />
+        <div className="h-10 w-10 rounded border border-line" style={{ background: hex }} />
         <input
           value={hex}
           onChange={(e) => {
@@ -70,7 +70,7 @@ function ColorPickerBody({ value, onChange, allowNone, label }: Props) {
               setH(parsed.h)
             }
           }}
-          className="flex-1 rounded bg-neutral-900 px-2 py-1.5 font-mono text-xs text-neutral-200 outline-none"
+          className="flex-1 rounded bg-surface-2 px-2 py-1.5 font-mono text-xs text-ink outline-none"
         />
       </div>
 
@@ -103,7 +103,7 @@ function ColorPickerBody({ value, onChange, allowNone, label }: Props) {
       />
 
       <div>
-        <div className="mb-1 text-[10px] uppercase tracking-wider text-neutral-500">Palette</div>
+        <div className="mb-1 text-[10px] uppercase tracking-wider text-ink-4">Palette</div>
         <div className="flex gap-1">
           {ROLE_ORDER.map((role) => {
             const hex = palette[role]
@@ -116,7 +116,7 @@ function ColorPickerBody({ value, onChange, allowNone, label }: Props) {
                   const parsed = parseColor(hex)
                   if (parsed) commit(parsed)
                 }}
-                className="h-6 w-6 rounded border border-neutral-800 hover:ring-1 hover:ring-neutral-400"
+                className="h-6 w-6 rounded border border-line hover:ring-1 hover:ring-neutral-400"
                 style={{ background: hex }}
               />
             )
@@ -128,7 +128,7 @@ function ColorPickerBody({ value, onChange, allowNone, label }: Props) {
         <button
           type="button"
           onClick={() => onChange(null)}
-          className="rounded border border-neutral-800 bg-neutral-900 px-2 py-1 text-xs text-neutral-300 hover:bg-neutral-800"
+          className="rounded border border-line bg-surface-2 px-2 py-1 text-xs text-ink-2 hover:bg-surface-3"
         >
           Clear (none)
         </button>
@@ -140,14 +140,14 @@ function ColorPickerBody({ value, onChange, allowNone, label }: Props) {
 function Swatch({ color }: { color: string | null }) {
   if (!color) {
     return (
-      <div className="relative h-4 w-4 overflow-hidden rounded-sm border border-neutral-700 bg-neutral-900">
+      <div className="relative h-4 w-4 overflow-hidden rounded-sm border border-line-strong bg-surface-2">
         <div className="absolute inset-0 flex items-center justify-center">
           <div className="h-[1px] w-5 rotate-45 bg-red-500" />
         </div>
       </div>
     )
   }
-  return <div className="h-4 w-4 rounded-sm border border-neutral-700" style={{ background: color }} />
+  return <div className="h-4 w-4 rounded-sm border border-line-strong" style={{ background: color }} />
 }
 
 function Slider({
@@ -169,7 +169,7 @@ function Slider({
 }) {
   return (
     <div className="flex items-center gap-2">
-      <span className="w-4 text-[10px] uppercase text-neutral-500">{label}</span>
+      <span className="w-4 text-[10px] uppercase text-ink-4">{label}</span>
       <div className="relative flex-1">
         <div
           className="absolute inset-y-1/2 h-2 w-full -translate-y-1/2 rounded-full"
@@ -187,11 +187,11 @@ function Slider({
             '[&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:w-4',
             '[&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full',
             '[&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-white',
-            '[&::-webkit-slider-thumb]:bg-neutral-950 [&::-webkit-slider-thumb]:shadow',
+            '[&::-webkit-slider-thumb]:bg-surface [&::-webkit-slider-thumb]:shadow',
           )}
         />
       </div>
-      <span className="w-10 text-right font-mono text-[10px] text-neutral-400">
+      <span className="w-10 text-right font-mono text-[10px] text-ink-3">
         {value.toFixed(step < 0.01 ? 3 : step < 1 ? 2 : 0)}
       </span>
     </div>

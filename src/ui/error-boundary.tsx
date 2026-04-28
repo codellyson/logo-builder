@@ -17,9 +17,9 @@ export class ErrorBoundary extends Component<Props, State> {
   render() {
     if (!this.state.error) return this.props.children
     return (
-      <div className="flex h-screen w-screen flex-col items-center justify-center gap-3 bg-neutral-950 p-6 text-neutral-100">
+      <div className="flex h-screen w-screen flex-col items-center justify-center gap-3 bg-surface p-6 text-ink">
         <div className="text-lg font-medium">Something broke.</div>
-        <div className="max-w-lg rounded bg-neutral-900 p-3 font-mono text-xs text-red-300">
+        <div className="max-w-lg rounded bg-surface-2 p-3 font-mono text-xs text-red-300">
           {this.state.error.message}
         </div>
         <div className="flex gap-2">
@@ -36,7 +36,7 @@ export class ErrorBoundary extends Component<Props, State> {
           <button
             type="button"
             onClick={() => this.setState({ error: null })}
-            className="rounded-md border border-neutral-700 px-3 py-1.5 text-xs text-neutral-300 hover:bg-neutral-800"
+            className="rounded-md border border-line-strong px-3 py-1.5 text-xs text-ink-2 hover:bg-surface-3"
           >
             Try again
           </button>

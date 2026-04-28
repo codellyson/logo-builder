@@ -88,13 +88,13 @@ export function ShortcutsModal({ onClose }: Props) {
         if (e.target === e.currentTarget) onClose()
       }}
     >
-      <div className="w-full max-w-xl rounded-lg border border-neutral-800 bg-neutral-950">
-        <div className="flex items-center justify-between border-b border-neutral-800 px-4 py-3">
+      <div className="w-full max-w-xl rounded-lg border border-line bg-surface">
+        <div className="flex items-center justify-between border-b border-line px-4 py-3">
           <div className="text-sm font-medium">Keyboard shortcuts</div>
           <button
             type="button"
             onClick={onClose}
-            className="flex h-8 w-8 items-center justify-center rounded text-neutral-400 hover:bg-neutral-800 hover:text-neutral-100"
+            className="flex h-8 w-8 items-center justify-center rounded text-ink-3 hover:bg-surface-3 hover:text-ink"
           >
             <Icon icon="lucide:x" width={16} height={16} />
           </button>
@@ -102,14 +102,14 @@ export function ShortcutsModal({ onClose }: Props) {
         <div className="grid grid-cols-1 gap-6 p-4 sm:grid-cols-3">
           {GROUPS.map((g) => (
             <div key={g.title}>
-              <div className="mb-2 text-[10px] uppercase tracking-wider text-neutral-500">
+              <div className="mb-2 text-[10px] uppercase tracking-wider text-ink-4">
                 {g.title}
               </div>
               <div className="space-y-1">
                 {g.rows.map(([k, v]) => (
                   <div key={k} className="flex items-center justify-between gap-2 text-xs">
-                    <span className="text-neutral-400">{v}</span>
-                    <kbd className="rounded border border-neutral-700 bg-neutral-900 px-1.5 py-0.5 font-mono text-[10px] text-neutral-300">
+                    <span className="text-ink-3">{v}</span>
+                    <kbd className="rounded border border-line-strong bg-surface-2 px-1.5 py-0.5 font-mono text-[10px] text-ink-2">
                       {k}
                     </kbd>
                   </div>
@@ -118,11 +118,11 @@ export function ShortcutsModal({ onClose }: Props) {
             </div>
           ))}
         </div>
-        <div className="flex items-center justify-end border-t border-neutral-800 px-4 py-3">
+        <div className="flex items-center justify-end border-t border-line px-4 py-3">
           <button
             type="button"
             onClick={resetPanelPositions}
-            className="flex items-center gap-1.5 rounded border border-neutral-800 bg-neutral-900 px-2.5 py-1.5 text-[11px] text-neutral-400 hover:bg-neutral-800 hover:text-neutral-200"
+            className="flex items-center gap-1.5 rounded border border-line bg-surface-2 px-2.5 py-1.5 text-[11px] text-ink-3 hover:bg-surface-3 hover:text-ink"
           >
             <Icon icon="lucide:rotate-ccw" width={11} height={11} />
             Reset toolbar positions

@@ -40,28 +40,28 @@ export function TemplateExportDialog({ onClose }: Props) {
         if (e.target === e.currentTarget) onClose()
       }}
     >
-      <div className="flex h-full max-h-[80vh] w-full max-w-2xl flex-col overflow-hidden rounded-lg border border-neutral-800 bg-neutral-950">
-        <div className="flex items-center justify-between border-b border-neutral-800 px-4 py-3">
+      <div className="flex h-full max-h-[80vh] w-full max-w-2xl flex-col overflow-hidden rounded-lg border border-line bg-surface">
+        <div className="flex items-center justify-between border-b border-line px-4 py-3">
           <div>
             <div className="text-sm font-medium">Export as template</div>
-            <div className="text-xs text-neutral-500">
-              Paste into <code className="text-neutral-400">TEMPLATES</code> in{' '}
-              <code className="text-neutral-400">src/templates/registry.ts</code>.
+            <div className="text-xs text-ink-4">
+              Paste into <code className="text-ink-3">TEMPLATES</code> in{' '}
+              <code className="text-ink-3">src/templates/registry.ts</code>.
             </div>
           </div>
           <button
             type="button"
             onClick={onClose}
-            className="flex h-8 w-8 items-center justify-center rounded text-neutral-400 hover:bg-neutral-800 hover:text-neutral-100"
+            className="flex h-8 w-8 items-center justify-center rounded text-ink-3 hover:bg-surface-3 hover:text-ink"
           >
             <Icon icon="lucide:x" width={16} height={16} />
           </button>
         </div>
         <div className="flex flex-1 flex-col gap-2 p-4">
-          <div className="rounded border border-neutral-800 bg-neutral-900/50 px-3 py-2 text-[11px] text-neutral-400">
+          <div className="rounded border border-line bg-surface-2/50 px-3 py-2 text-[11px] text-ink-3">
             Tip: any TextNode with the literal word{' '}
-            <code className="text-neutral-300">Brand</code> is rewritten to{' '}
-            <code className="text-neutral-300">{'{{brand}}'}</code> so the
+            <code className="text-ink-2">Brand</code> is rewritten to{' '}
+            <code className="text-ink-2">{'{{brand}}'}</code> so the
             instantiator can swap in the user's brand name.
           </div>
           <textarea
@@ -69,7 +69,7 @@ export function TemplateExportDialog({ onClose }: Props) {
             readOnly
             value={literal || 'Building…'}
             spellCheck={false}
-            className="flex-1 resize-none rounded border border-neutral-800 bg-neutral-900 p-2 font-mono text-[11px] text-neutral-200 outline-none"
+            className="flex-1 resize-none rounded border border-line bg-surface-2 p-2 font-mono text-[11px] text-ink outline-none"
           />
           <div className="flex justify-end">
             <button
