@@ -1,4 +1,3 @@
-import opentype from 'opentype.js'
 import { db, type AssetKind, type AssetRecord } from '@/persistence/db'
 import { newId } from '@/lib/id'
 
@@ -85,6 +84,7 @@ async function createFontAsset(file: File): Promise<AssetRecord> {
   const buffer = await file.arrayBuffer()
   let family: string | null = null
   try {
+    const opentype = await import('opentype.js')
     const font = opentype.parse(buffer)
     // names.fontFamily is a localized record { en: '...', ... }; pick en or
     // first available. Fall back to file stem if metadata is empty.

@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useMemo, useRef, useState } from 'react'
+import { Fragment, lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react'
 import { Stage, Layer, Rect, Group } from 'react-konva'
 import type Konva from 'konva'
 import { useCanvasStore } from '@/state/canvas-store'
@@ -9,8 +9,14 @@ import { Marquee, intersects } from '@/canvas/marquee'
 import { TextEditor } from '@/canvas/text-editor'
 import { Guides } from '@/canvas/guides'
 import { PenDraftPreview } from '@/canvas/pen-draft-preview'
-import { PathEditOverlay } from '@/canvas/path-edit-overlay'
 import { GradientHandleOverlay } from '@/canvas/gradient-handle-overlay'
+
+// Lazy: PathEditOverlay statically imports composition/path-edit-ops which
+// pulls paper.js. Only mounts when toolMode === 'edit-path', so the user
+// pays its load cost only when they actually enter edit mode.
+const PathEditOverlay = lazy(() =>
+  import('@/canvas/path-edit-overlay').then((m) => ({ default: m.PathEditOverlay })),
+)
 import { computeSnap, type Bbox, type SnapGuide } from '@/composition/alignment'
 import { constrainToAxis } from '@/composition/geom'
 import { FONTS_LOADED_EVENT } from '@/fonts/preload'
@@ -557,13 +563,18 @@ export function EditorCanvas() {
                 ancestors.unshift(p)
                 p = p.parentId ? nodes.find((x) => x.id === p!.parentId) : undefined
               }
+              const inner = (
+                <Suspense fallback={null}>
+                  <PathEditOverlay node={n} scale={viewport.scale} />
+                </Suspense>
+              )
               return ancestors.reduceRight<React.ReactNode>(
-                (inner, anc) => (
+                (acc, anc) => (
                   <Group key={anc.id} x={anc.x} y={anc.y} rotation={anc.rotation}>
-                    {inner}
+                    {acc}
                   </Group>
                 ),
-                <PathEditOverlay node={n} scale={viewport.scale} />,
+                inner,
               )
             })()}
             {/* Gradient handles — visible when a single node with a linear

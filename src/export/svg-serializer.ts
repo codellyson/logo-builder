@@ -17,7 +17,6 @@ import type {
 } from '@/canvas/types'
 import { fetchIconSvg } from '@/icons/icon-svg'
 import { textToOutlines } from '@/composition/text-to-outlines'
-import { evaluateBoolean } from '@/composition/evaluate-boolean'
 import { polygonPoints, starPoints } from '@/composition/to-path'
 import { fillSolidColor, splitColorOpacity } from '@/composition/fills'
 import { getAsset } from '@/persistence/assets'
@@ -285,6 +284,10 @@ async function iconSvg(n: IconNode, defs: Defs): Promise<string> {
 async function booleanSvg(n: BooleanNode, allNodes: CanvasNode[], defs: Defs): Promise<string> {
   let data = n.cache?.data
   if (!data) {
+    // evaluate-boolean pulls paper.js via node-to-path; dynamic-import
+    // means LayerThumbnail / serializeSvg only load that graph when a
+    // boolean actually needs evaluation.
+    const { evaluateBoolean } = await import('@/composition/evaluate-boolean')
     const computed = await evaluateBoolean(n.id, allNodes)
     data = computed?.data
   }

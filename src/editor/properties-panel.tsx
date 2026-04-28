@@ -51,7 +51,6 @@ import { useEffect, useState } from 'react'
 import { Icon } from '@iconify/react'
 import { getAsset } from '@/persistence/assets'
 import type { AssetRecord } from '@/persistence/db'
-import { svgAssetToPaths } from '@/composition/svg-asset-to-path'
 import { solidFill } from '@/composition/fills'
 import { newId } from '@/lib/id'
 
@@ -788,6 +787,9 @@ function AssetFields({ node }: { node: AssetNode }) {
     setError(null)
     try {
       const text = await asset.blob.text()
+      // Dynamic-import keeps paper.js out of the initial bundle —
+      // SVG-to-path conversion is a single user action, not a render path.
+      const { svgAssetToPaths } = await import('@/composition/svg-asset-to-path')
       const leaves = svgAssetToPaths(text, node.width, node.height)
       if (!leaves) {
         setError('SVG could not be flattened to a path.')

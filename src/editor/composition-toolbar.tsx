@@ -1,6 +1,5 @@
 import { Icon } from '@iconify/react'
 import { useCanvasStore } from '@/state/canvas-store'
-import { convertToPath } from '@/composition/to-path'
 import { textToOutlineGlyphs } from '@/composition/text-to-outlines'
 import type { BooleanOp, CanvasNode, GroupNode, PathNode, TextNode } from '@/canvas/types'
 import { newId } from '@/lib/id'
@@ -40,7 +39,10 @@ export function CompositionToolbar() {
     if (!id) console.warn('createBoolean rejected', { selectedIds, op })
   }
 
-  const doConvertToPath = () => {
+  const doConvertToPath = async () => {
+    // Dynamic-imported so paper.js (used by translatePath / pathBounds)
+    // stays out of the initial bundle.
+    const { convertToPath } = await import('@/composition/convert-to-path')
     const newIds: string[] = []
     for (const n of selected) {
       if (n.type === 'rect' || n.type === 'ellipse' || n.type === 'line') {

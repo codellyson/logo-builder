@@ -5,10 +5,8 @@ import type { AssetNode, CanvasNode, Effect, IconNode, RadialFill } from '@/canv
 import { getAsset } from '@/persistence/assets'
 import { useCanvasStore } from '@/state/canvas-store'
 import { loadIconImage, loadIconImageWithGradient } from '@/icons/icon-svg'
-import { scalePath } from '@/composition/paper-bridge'
 import { polygonPoints, starPoints } from '@/composition/to-path'
 import { fillKonvaProps, fillSolidColor, scaleFill, strokeKonvaProps } from '@/composition/fills'
-import { computeStrokeOutlinePathData } from '@/composition/stroke-outline'
 
 type Props = {
   node: CanvasNode
@@ -447,10 +445,22 @@ function RadialStrokeOverlay({
   ghosted: boolean
 }) {
   // Recompute when the node identity changes — zustand creates new node
-  // references on every store update, so this re-runs only on real changes.
-  // expandStroke (paper.js) is non-trivial; a more granular dep array per
-  // node type is a future optimization if profiling demands it.
-  const data = useMemo(() => computeStrokeOutlinePathData(node), [node])
+  // references on every store update, so this re-runs only on real
+  // changes. stroke-outline pulls paper.js, so we dynamic-import it on
+  // first need: the very first radial-stroke render skips a frame while
+  // paper loads, then settles. Subsequent recomputes are sync because
+  // the module is cached in the browser.
+  const [data, setData] = useState<string | null>(null)
+  useEffect(() => {
+    let cancelled = false
+    void import('@/composition/stroke-outline').then((m) => {
+      if (cancelled) return
+      setData(m.computeStrokeOutlinePathData(node))
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [node])
   if (!data) return null
   const opacity = ghosted ? node.opacity * 0.4 : node.opacity
   return (
@@ -467,11 +477,18 @@ function RadialStrokeOverlay({
   )
 }
 
-function bakeScale(node: CanvasNode, scaleX: number, scaleY: number, target: Konva.Node) {
+async function bakeScale(node: CanvasNode, scaleX: number, scaleY: number, target: Konva.Node) {
   const update = useCanvasStore.getState().updateNode
   const x = target.x()
   const y = target.y()
   const rotation = target.rotation()
+  // path / boolean baking needs paper.js to scale the path data — pull
+  // it lazily so it isn't in the initial bundle. Other node types (rect,
+  // ellipse, etc.) don't need paper at all.
+  const needsPaper = node.type === 'path' || node.type === 'boolean'
+  const scalePath = needsPaper
+    ? (await import('@/composition/paper-bridge')).scalePath
+    : null
 
   if (node.type === 'rect') {
     update(node.id, {
@@ -524,7 +541,7 @@ function bakeScale(node: CanvasNode, scaleX: number, scaleY: number, target: Kon
       x,
       y,
       rotation,
-      data: scalePath(node.data, scaleX, scaleY),
+      data: scalePath!(node.data, scaleX, scaleY),
       width: Math.max(1, node.width * scaleX),
       height: Math.max(1, node.height * scaleY),
       fill: scaleFill(node.fill, scaleX, scaleY),
@@ -574,7 +591,7 @@ function bakeScale(node: CanvasNode, scaleX: number, scaleY: number, target: Kon
       y,
       rotation,
       cache: {
-        data: scalePath(node.cache.data, scaleX, scaleY),
+        data: scalePath!(node.cache.data, scaleX, scaleY),
         width: Math.max(1, node.cache.width * scaleX),
         height: Math.max(1, node.cache.height * scaleY),
         version: Date.now(),

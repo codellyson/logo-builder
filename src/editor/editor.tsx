@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { lazy, Suspense, useEffect, useState } from 'react'
 import { EditorHeader } from '@/editor/header'
 import { LeftSidebar } from '@/editor/left-sidebar'
 import { PropertiesPanel } from '@/editor/properties-panel'
@@ -8,15 +8,24 @@ import { AlignToolbar } from '@/editor/align-toolbar'
 import { useKeyboardShortcuts } from '@/editor/keyboard'
 import { EditorCanvas } from '@/canvas/stage'
 import { PalettePanel } from '@/colors/palette-panel'
-import { ExportModal } from '@/export/export-modal'
-import { ProjectsModal } from '@/editor/projects-modal'
-import { ShortcutsModal } from '@/editor/shortcuts-modal'
 import { ZoomControls } from '@/editor/zoom-controls'
 import { EmptyState } from '@/editor/empty-state'
 import { useAutosave, restoreActiveProjectOnMount } from '@/state/autosave'
 import { useCanvasStore } from '@/state/canvas-store'
-import { startBooleanEvalRunner } from '@/composition/boolean-eval-runner'
 import { bootCustomFonts } from '@/fonts/custom-fonts'
+
+// Modal-only components are lazy so their static-import deps (jszip,
+// svgo for ExportModal; serializeSvg → opentype for ProjectsModal
+// thumbnails) don't ride along on the initial bundle.
+const ExportModal = lazy(() =>
+  import('@/export/export-modal').then((m) => ({ default: m.ExportModal })),
+)
+const ProjectsModal = lazy(() =>
+  import('@/editor/projects-modal').then((m) => ({ default: m.ProjectsModal })),
+)
+const ShortcutsModal = lazy(() =>
+  import('@/editor/shortcuts-modal').then((m) => ({ default: m.ShortcutsModal })),
+)
 
 export function Editor() {
   const [exportOpen, setExportOpen] = useState(false)
@@ -42,7 +51,23 @@ export function Editor() {
     }
   }, [])
 
-  useEffect(() => startBooleanEvalRunner(), [])
+  // Lazy-import the boolean eval runner so its static paper.js graph
+  // (node-to-path, stroke-outline, evaluate-boolean) doesn't ride along
+  // on the initial bundle. The runner only does work when there's a
+  // boolean to evaluate, so deferring its module load is free in
+  // practice.
+  useEffect(() => {
+    let stop: (() => void) | null = null
+    let cancelled = false
+    void import('@/composition/boolean-eval-runner').then((m) => {
+      if (cancelled) return
+      stop = m.startBooleanEvalRunner()
+    })
+    return () => {
+      cancelled = true
+      stop?.()
+    }
+  }, [])
 
   if (!bootReady) {
     return (
@@ -59,9 +84,11 @@ export function Editor() {
         onOpenProjects={() => setProjectsOpen(true)}
         canExport={hasNodes}
       />
-      {exportOpen && <ExportModal onClose={() => setExportOpen(false)} />}
-      {projectsOpen && <ProjectsModal onClose={() => setProjectsOpen(false)} />}
-      {helpOpen && <ShortcutsModal onClose={() => setHelpOpen(false)} />}
+      <Suspense fallback={null}>
+        {exportOpen && <ExportModal onClose={() => setExportOpen(false)} />}
+        {projectsOpen && <ProjectsModal onClose={() => setProjectsOpen(false)} />}
+        {helpOpen && <ShortcutsModal onClose={() => setHelpOpen(false)} />}
+      </Suspense>
       <div className="flex flex-1 overflow-hidden">
         <aside className="w-64 shrink-0 border-r border-neutral-800 bg-neutral-950">
           <LeftSidebar />

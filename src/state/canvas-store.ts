@@ -5,9 +5,7 @@ import type { BooleanCache, BooleanNode, BooleanOp, CanvasNode, Effect, Fill, Gr
 import { solidFill } from '@/composition/fills'
 import { newId } from '@/lib/id'
 import { DEFAULT_PALETTE, generatePalette, type Palette } from '@/colors/palette'
-import paper from 'paper'
 import { getNodeBbox, getSelectionBbox } from '@/composition/bbox'
-import { ensureInit as ensureInitForPen } from '@/composition/paper-bridge'
 
 export type AlignEdge = 'left' | 'hcenter' | 'right' | 'top' | 'vcenter' | 'bottom'
 export type DistributeAxis = 'h' | 'v'
@@ -110,7 +108,7 @@ type CanvasActions = {
   penFinalizePending: () => void
   penUndoLastAnchor: () => void
   penSetCursor: (x: number, y: number) => void
-  penCommit: (closed: boolean) => string | null
+  penCommit: (closed: boolean) => Promise<string | null>
   penCancel: () => void
   enterPathEdit: (nodeId: string) => void
   setPathEditSelectedIndices: (indices: number[]) => void
@@ -573,31 +571,22 @@ export const useCanvasStore = create<CanvasState & CanvasActions>()(
           return { penDraft: { ...s.penDraft, cursor: { x, y } } }
         }),
 
-      penCommit: (closed) => {
+      penCommit: async (closed) => {
         const state = get()
         if (state.toolMode !== 'pen' || !state.penDraft) return null
         const segs = state.penDraft.segments
         if (segs.length < 2) return null
 
-        // Build a paper.Path with handles so pathData contains proper cubic Bezier
-        // commands, then normalize to (0, 0) origin.
-        ensureInitForPen()
-        const paperPath = new paper.Path({ insert: false, closed })
-        for (const seg of segs) {
-          paperPath.add(
-            new paper.Segment(
-              new paper.Point(seg.x, seg.y),
-              seg.handleIn ? new paper.Point(seg.handleIn.dx, seg.handleIn.dy) : undefined,
-              seg.handleOut ? new paper.Point(seg.handleOut.dx, seg.handleOut.dy) : undefined,
-            ),
-          )
-        }
-        const bounds = paperPath.bounds
-        paperPath.translate(new paper.Point(-bounds.x, -bounds.y))
-        const data = paperPath.pathData
+        // paper.js builds the cubic-bezier path data with proper handles
+        // and normalizes to (0, 0). The builder lives in its own module
+        // so canvas-store doesn't statically import paper — this keeps
+        // paper.js out of the initial bundle's static graph.
+        const { buildPenPathData } = await import('@/composition/pen-path-builder')
+        const built = buildPenPathData(segs, closed)
+        const { data } = built
+        const bounds = built.bounds
         const width = Math.max(1, bounds.width)
         const height = Math.max(1, bounds.height)
-        paperPath.remove()
 
         const node: PathNode = {
           id: newId(),

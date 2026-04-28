@@ -1,10 +1,25 @@
-import JSZip from 'jszip'
-import { optimize } from 'svgo'
 import { serializeSvg } from '@/export/svg-serializer'
 import { svgToPngBlob, svgToPngDataUrl } from '@/export/raster'
 import { encodeIco } from '@/export/ico'
 import { deriveVariant, type LockupVariant } from '@/export/lockups'
 import type { CanvasNode } from '@/canvas/types'
+import type JSZipType from 'jszip'
+
+// jszip + svgo together are ~190 kB gz; both are export-only and the
+// existing call sites are all async, so we dynamic-import them on first
+// use. Module identity is cached so the second export reuses the same
+// instance.
+let svgoModulePromise: Promise<typeof import('svgo')> | null = null
+function loadSvgo(): Promise<typeof import('svgo')> {
+  svgoModulePromise ??= import('svgo')
+  return svgoModulePromise
+}
+
+let jszipModulePromise: Promise<{ default: typeof JSZipType }> | null = null
+function loadJSZip(): Promise<{ default: typeof JSZipType }> {
+  jszipModulePromise ??= import('jszip')
+  return jszipModulePromise
+}
 
 export type ExportFormat = 'svg' | 'png' | 'favicon'
 
@@ -45,6 +60,7 @@ export const DEFAULT_SELECTION: ExportSelection = {
 
 export async function cleanSvg(svg: string): Promise<string> {
   try {
+    const { optimize } = await loadSvgo()
     const result = optimize(svg, { multipass: true })
     return result.data
   } catch {
@@ -82,6 +98,7 @@ export async function buildBrandPack({
   artboardBackground,
   selection = DEFAULT_SELECTION,
 }: BuildArgs): Promise<Blob> {
+  const { default: JSZip } = await loadJSZip()
   const zip = new JSZip()
   const slug = brandName.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'logo'
 
@@ -91,8 +108,8 @@ export async function buildBrandPack({
   const padding = Math.max(0, selection.padding ?? 0)
 
   // Folders are lazily created so empty selections don't ship empty dirs.
-  let svgFolder: JSZip | null = null
-  let pngFolder: JSZip | null = null
+  let svgFolder: JSZipType | null = null
+  let pngFolder: JSZipType | null = null
 
   const primaryBg = resolveOriginalBackground(selection.background, artboardBackground)
   const primarySvg = await cleanSvg(
