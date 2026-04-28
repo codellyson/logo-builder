@@ -1,7 +1,18 @@
 import { SCHEMA_VERSION, type ProjectSnapshot } from '@/persistence/db'
-import { generatePalette } from '@/colors/palette'
+import { generatePalette, type PaletteRole } from '@/colors/palette'
 import { solidFill } from '@/composition/fills'
 import type { CanvasNode } from '@/canvas/types'
+
+// Color binding: rewrite a specific node's fill or stroke to a palette
+// role at instantiation time, so the user's seed color choice actually
+// shows up on the canvas. Templates pin this explicitly because Fill is
+// hex-typed — we don't carry palette-role references through the live
+// store, so the swap has to happen once at template → project boundary.
+export type TemplateColorBinding = {
+  nodeId: string
+  target: 'fill' | 'stroke'
+  role: PaletteRole
+}
 
 // A starter logo. Templates ship as fully-designed ProjectSnapshots so a
 // "New from template" pick puts the user in front of a finished-looking
@@ -16,6 +27,10 @@ export type Template = {
   // re-generate the palette at instantiation time using the user's
   // chosen seed so the rest of the editor's palette UI stays in sync.
   paletteSeed: string
+  // Optional per-node color bindings — see TemplateColorBinding. Without
+  // bindings, the seed color regenerates the palette object but doesn't
+  // recolor any geometry.
+  colorBindings?: TemplateColorBinding[]
   snapshot: ProjectSnapshot
 }
 
@@ -29,6 +44,11 @@ const geometricWordmark: Template = {
   name: 'Geometric Wordmark',
   description: 'Circle accent + bold wordmark + tagline',
   paletteSeed: '#6366f1',
+  colorBindings: [
+    { nodeId: 'tpl-mark', target: 'fill', role: 'primary' },
+    { nodeId: 'tpl-wordmark', target: 'fill', role: 'ink' },
+    { nodeId: 'tpl-tagline', target: 'fill', role: 'muted' },
+  ],
   snapshot: {
     version: SCHEMA_VERSION,
     stageWidth: 800,
@@ -107,6 +127,11 @@ const xMark: Template = {
   name: 'X Mark',
   description: 'Bold geometric X-mark over a centered wordmark',
   paletteSeed: '#0ea5e9',
+  colorBindings: [
+    { nodeId: 'tpl-x-icon', target: 'fill', role: 'primary' },
+    { nodeId: 'tpl-x-wordmark', target: 'fill', role: 'primary' },
+    { nodeId: 'tpl-x-tagline', target: 'fill', role: 'muted' },
+  ],
   snapshot: {
     version: SCHEMA_VERSION,
     stageWidth: 800,
@@ -186,15 +211,35 @@ export function instantiateTemplate(
 ): ProjectSnapshot {
   const seed = options.paletteSeed ?? template.paletteSeed
   const brand = options.brandName.trim() || 'Brand'
+  const palette = generatePalette(seed)
+
+  // Group bindings by node id so we apply at most one fill swap and one
+  // stroke swap per node in a single pass.
+  const bindingsByNode = new Map<string, TemplateColorBinding[]>()
+  for (const b of template.colorBindings ?? []) {
+    const arr = bindingsByNode.get(b.nodeId) ?? []
+    arr.push(b)
+    bindingsByNode.set(b.nodeId, arr)
+  }
+
   const nodes = template.snapshot.nodes.map((n) => {
-    if (n.type === 'text' && n.text.includes(BRAND_TOKEN)) {
-      return { ...n, text: n.text.replace(BRAND_TOKEN, brand) }
+    let next: CanvasNode = n
+    if (next.type === 'text' && next.text.includes(BRAND_TOKEN)) {
+      next = { ...next, text: next.text.replace(BRAND_TOKEN, brand) }
     }
-    return n
+    const bindings = bindingsByNode.get(next.id)
+    if (bindings && bindings.length > 0) {
+      const patch: Record<string, unknown> = {}
+      for (const b of bindings) {
+        patch[b.target] = solidFill(palette[b.role])
+      }
+      next = { ...next, ...patch } as CanvasNode
+    }
+    return next
   })
   return {
     ...template.snapshot,
-    palette: generatePalette(seed),
+    palette,
     nodes,
   }
 }
