@@ -1,5 +1,6 @@
 import { Fragment, lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react'
-import { Stage, Layer, Rect, Group } from 'react-konva'
+import { Stage, Layer, Rect, Group, Line } from 'react-konva'
+import { cn } from '@/lib/cn'
 import type Konva from 'konva'
 import { useCanvasStore } from '@/state/canvas-store'
 import { NodeRenderer } from '@/canvas/nodes'
@@ -66,6 +67,15 @@ export function EditorCanvas() {
   } | null>(null)
   const [fileDragOver, setFileDragOver] = useState(false)
   const [dropError, setDropError] = useState<string | null>(null)
+  // In-progress knife stroke. Endpoints are in world (artboard) coordinates,
+  // i.e. the same frame as node.x / node.y, so the geometry split in phase 4
+  // can feed them straight into paper.js without any further transform.
+  const [knifeStroke, setKnifeStroke] = useState<{
+    startX: number
+    startY: number
+    x: number
+    y: number
+  } | null>(null)
   const lastFitId = useRef(-1)
 
   const nodes = useCanvasStore((s) => s.nodes)
@@ -217,6 +227,16 @@ export function EditorCanvas() {
     const stage = stageRef.current
     if (!stage) return
 
+    // Knife mode: pointer-down on the stage starts a stroke; drag updates
+    // the line; up commits. Clicks pass through node hit-testing — knife
+    // operates on whatever the line crosses, not what was clicked.
+    if (toolMode === 'knife') {
+      const pos = stage.getRelativePointerPosition()
+      if (!pos) return
+      setKnifeStroke({ startX: pos.x, startY: pos.y, x: pos.x, y: pos.y })
+      return
+    }
+
     // Pen mode: intercept clicks. Mousedown starts a pending anchor; drag shapes
     // its handles; mouseup finalizes. Clicking the first anchor closes the path.
     if (toolMode === 'pen') {
@@ -253,6 +273,13 @@ export function EditorCanvas() {
   const handleStageMouseMove = (e: Konva.KonvaEventObject<MouseEvent>) => {
     const stage = stageRef.current
     if (!stage) return
+
+    if (toolMode === 'knife' && knifeStroke) {
+      const pos = stage.getRelativePointerPosition()
+      if (!pos) return
+      setKnifeStroke({ ...knifeStroke, x: pos.x, y: pos.y })
+      return
+    }
 
     if (toolMode === 'pen' && penDraft) {
       const pos = stage.getRelativePointerPosition()
@@ -362,7 +389,48 @@ export function EditorCanvas() {
     requestAnimationFrame(() => setLiveTransform(null))
   }
 
+  // Lazy-imports the knife geometry (paper.js) so the eager bundle stays
+  // free of it. Builds replacements from the current store snapshot, then
+  // commits as one set() so a single undo restores every cut node.
+  const commitKnifeCut = async (stroke: { startX: number; startY: number; x: number; y: number }) => {
+    const { planKnifeCut } = await import('@/composition/knife-cut')
+    const state = useCanvasStore.getState()
+    const replacements = planKnifeCut(state.nodes, {
+      startX: stroke.startX,
+      startY: stroke.startY,
+      endX: stroke.x,
+      endY: stroke.y,
+    })
+    if (replacements.length === 0) return
+    const removeSet = new Set(replacements.map((r) => r.removeId))
+    const inserts = new Map<string, CanvasNode[]>()
+    for (const r of replacements) inserts.set(r.removeId, r.replace as CanvasNode[])
+    const next: CanvasNode[] = []
+    for (const n of state.nodes) {
+      if (removeSet.has(n.id)) {
+        const fresh = inserts.get(n.id)!
+        // Preserve parentId so cut pieces stay grouped with the original.
+        for (const piece of fresh) next.push({ ...piece, parentId: n.parentId } as CanvasNode)
+      } else {
+        next.push(n)
+      }
+    }
+    const newSelected = replacements.flatMap((r) => r.replace.map((p) => p.id))
+    useCanvasStore.setState({ nodes: next, selectedIds: newSelected })
+  }
+
   const handleStageMouseUp = () => {
+    if (toolMode === 'knife') {
+      const stroke = knifeStroke
+      setKnifeStroke(null)
+      if (!stroke) return
+      const dx = stroke.x - stroke.startX
+      const dy = stroke.y - stroke.startY
+      if (Math.hypot(dx, dy) < 2) return
+      void commitKnifeCut(stroke)
+      return
+    }
+
     if (toolMode === 'pen') {
       const drag = penDragState.current
       penDragState.current = null
@@ -515,7 +583,10 @@ export function EditorCanvas() {
   return (
     <div
       ref={containerRef}
-      className="relative h-full w-full overflow-hidden"
+      className={cn(
+        'relative h-full w-full overflow-hidden',
+        toolMode === 'knife' && 'cursor-crosshair',
+      )}
       onDragEnter={(e) => {
         if (Array.from(e.dataTransfer.types).includes('Files')) {
           e.preventDefault()
@@ -571,6 +642,15 @@ export function EditorCanvas() {
             <CanvasTransformer selectedIds={selectedIds} />
             <Marquee rect={marquee} />
             <Guides guides={guides} scale={viewport.scale} />
+            {knifeStroke && (
+              <Line
+                points={[knifeStroke.startX, knifeStroke.startY, knifeStroke.x, knifeStroke.y]}
+                stroke="#818cf8"
+                strokeWidth={1.5 / viewport.scale}
+                dash={[6 / viewport.scale, 4 / viewport.scale]}
+                listening={false}
+              />
+            )}
             {toolMode === 'pen' && penDraft && (
               <PenDraftPreview draft={penDraft} scale={viewport.scale} />
             )}
@@ -638,7 +718,7 @@ export function EditorCanvas() {
       )}
       {fileDragOver && (
         <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-indigo-500/5 outline-dashed outline-2 -outline-offset-8 outline-indigo-400/60">
-          <div className="rounded-md bg-neutral-950/80 px-3 py-1.5 text-xs text-indigo-200 backdrop-blur">
+          <div className="rounded-md bg-surface/80 px-3 py-1.5 text-xs text-indigo-200 backdrop-blur">
             Drop to import
           </div>
         </div>

@@ -6,11 +6,12 @@ import { solidFill } from '@/composition/fills'
 import { newId } from '@/lib/id'
 import { DEFAULT_PALETTE, generatePalette, type Palette } from '@/colors/palette'
 import { getNodeBbox, getSelectionBbox } from '@/composition/bbox'
+import { viewportInsertionCenter } from '@/canvas/factories'
 
 export type AlignEdge = 'left' | 'hcenter' | 'right' | 'top' | 'vcenter' | 'bottom'
 export type DistributeAxis = 'h' | 'v'
 
-export type ToolMode = 'select' | 'pen' | 'edit-path'
+export type ToolMode = 'select' | 'pen' | 'edit-path' | 'knife'
 
 export type PathEditState = {
   nodeId: string
@@ -33,6 +34,16 @@ export type PenDraftState = {
   pending: PenDraftSegment | null
   cursor: { x: number; y: number } | null
 } | null
+
+// Internal clipboard. Persists for the tab's lifetime — no OS clipboard
+// interop. `nodes` is a deep snapshot (originals untouched); `rootIds` marks
+// which entries become top-level on paste, and `bbox` is captured at copy
+// time so paste can recenter on the current viewport without re-walking.
+export type ClipboardPayload = {
+  nodes: CanvasNode[]
+  rootIds: string[]
+  bbox: { x: number; y: number; width: number; height: number }
+}
 
 function invalidateBooleanAncestors(
   nodes: CanvasNode[],
@@ -77,6 +88,7 @@ type CanvasState = {
   toolMode: ToolMode
   penDraft: PenDraftState
   pathEditState: PathEditState
+  clipboard: ClipboardPayload | null
   // Identity of the project the autosave loop writes to. Mirrored from the
   // localStorage-backed active id so components can subscribe and re-render
   // (e.g. the header showing the current project name).
@@ -90,6 +102,9 @@ type CanvasActions = {
   updateNode: (id: string, patch: Partial<CanvasNode>) => void
   removeNodes: (ids: string[]) => void
   duplicateNodes: (ids: string[]) => void
+  copyNodes: (ids: string[]) => void
+  cutNodes: (ids: string[]) => void
+  pasteClipboard: () => void
   moveZ: (id: string, dir: 'up' | 'down' | 'top' | 'bottom') => void
   reorder: (from: number, to: number) => void
   rename: (id: string, name: string) => void
@@ -155,6 +170,7 @@ const initialState: CanvasState = {
   toolMode: 'select',
   penDraft: null,
   pathEditState: null,
+  clipboard: null,
   activeProjectId: null,
   activeProjectName: 'Untitled',
 }
@@ -255,6 +271,94 @@ export const useCanvasStore = create<CanvasState & CanvasActions>()(
           if (isRoot) newSelected.push(copyId)
         }
         set((s) => ({ nodes: [...s.nodes, ...dupes], selectedIds: newSelected }))
+      },
+
+      copyNodes: (ids) => {
+        if (ids.length === 0) return
+        const { nodes } = get()
+        const rootSet = new Set(ids)
+        const captured = new Set<string>()
+        const queue = [...ids]
+        while (queue.length) {
+          const id = queue.shift()!
+          if (captured.has(id)) continue
+          captured.add(id)
+          for (const child of nodes) {
+            if (child.parentId === id) queue.push(child.id)
+          }
+        }
+        // Snapshot in tree order. structuredClone keeps boolean caches and
+        // any nested object fields (effects, points arrays) independent of
+        // the live store — paste must never alias originals.
+        const snapshot: CanvasNode[] = []
+        for (const n of nodes) if (captured.has(n.id)) snapshot.push(structuredClone(n))
+        // World-ish bbox: union of every leaf node's bbox in its parent
+        // frame. Matches the codebase's existing alignment convention; minor
+        // group-transform skew is acceptable since paste re-centers on the
+        // viewport anyway.
+        let minX = Infinity
+        let minY = Infinity
+        let maxX = -Infinity
+        let maxY = -Infinity
+        for (const n of snapshot) {
+          const b = getNodeBbox(n)
+          if (!b) continue
+          if (b.x < minX) minX = b.x
+          if (b.y < minY) minY = b.y
+          if (b.x + b.width > maxX) maxX = b.x + b.width
+          if (b.y + b.height > maxY) maxY = b.y + b.height
+        }
+        const bbox =
+          minX === Infinity
+            ? { x: 0, y: 0, width: 0, height: 0 }
+            : { x: minX, y: minY, width: maxX - minX, height: maxY - minY }
+        set({
+          clipboard: {
+            nodes: snapshot,
+            rootIds: snapshot.filter((n) => rootSet.has(n.id)).map((n) => n.id),
+            bbox,
+          },
+        })
+      },
+
+      cutNodes: (ids) => {
+        if (ids.length === 0) return
+        get().copyNodes(ids)
+        get().removeNodes(ids)
+      },
+
+      pasteClipboard: () => {
+        const { clipboard, viewport, viewportSize, stageWidth, stageHeight } = get()
+        if (!clipboard) return
+        const { cx, cy } = viewportInsertionCenter(viewport, viewportSize, {
+          stageWidth,
+          stageHeight,
+        })
+        const dx = cx - (clipboard.bbox.x + clipboard.bbox.width / 2)
+        const dy = cy - (clipboard.bbox.y + clipboard.bbox.height / 2)
+        const idMap = new Map<string, string>()
+        for (const n of clipboard.nodes) idMap.set(n.id, newId())
+        const rootSet = new Set(clipboard.rootIds)
+        const pasted: CanvasNode[] = []
+        const newSelected: string[] = []
+        for (const n of clipboard.nodes) {
+          const fresh = structuredClone(n)
+          fresh.id = idMap.get(n.id)!
+          // Re-parent: descendants point at the new id of their parent in
+          // the snapshot; roots become top-level regardless of where they
+          // came from. (Pasting back into the original group would surprise
+          // users who expect paste to land where they're looking.)
+          if (rootSet.has(n.id)) {
+            fresh.parentId = undefined
+            fresh.x += dx
+            fresh.y += dy
+            newSelected.push(fresh.id)
+          } else if (n.parentId && idMap.has(n.parentId)) {
+            fresh.parentId = idMap.get(n.parentId)
+          }
+          pasted.push(fresh)
+        }
+        set((s) => ({ nodes: [...s.nodes, ...pasted], selectedIds: newSelected }))
       },
 
       moveZ: (id, dir) =>

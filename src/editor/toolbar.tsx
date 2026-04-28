@@ -35,7 +35,7 @@ export function Toolbar() {
   }
 
   return (
-    <div className="pointer-events-auto flex flex-col gap-1 rounded-md border border-neutral-800 bg-neutral-950/95 p-1 shadow-lg backdrop-blur">
+    <div className="pointer-events-auto flex flex-col gap-1 rounded-md border border-line bg-surface/95 p-1 shadow-lg backdrop-blur">
       <button
         type="button"
         title={toolMode === 'pen' ? 'Exit Pen (V)' : 'Pen (P)'}
@@ -44,12 +44,25 @@ export function Toolbar() {
           'flex h-8 w-8 items-center justify-center rounded',
           toolMode === 'pen'
             ? 'bg-indigo-500/20 text-indigo-300'
-            : 'text-neutral-400 hover:bg-neutral-800 hover:text-neutral-100',
+            : 'text-ink-3 hover:bg-surface-3 hover:text-ink',
         )}
       >
         <Icon icon="lucide:pen-tool" width={16} height={16} />
       </button>
-      <div className="my-0.5 h-px bg-neutral-800" />
+      <button
+        type="button"
+        title={toolMode === 'knife' ? 'Exit Knife (V)' : 'Knife (K)'}
+        onClick={() => setToolMode(toolMode === 'knife' ? 'select' : 'knife')}
+        className={cn(
+          'flex h-8 w-8 items-center justify-center rounded',
+          toolMode === 'knife'
+            ? 'bg-indigo-500/20 text-indigo-300'
+            : 'text-ink-3 hover:bg-surface-3 hover:text-ink',
+        )}
+      >
+        <Icon icon="lucide:scissors" width={16} height={16} />
+      </button>
+      <div className="my-0.5 h-px bg-surface-3" />
       {TOOLS.map((t) => (
         <button
           key={t.type}
@@ -57,8 +70,8 @@ export function Toolbar() {
           title={t.label}
           onClick={() => onAdd(t.type)}
           className={cn(
-            'flex h-8 w-8 items-center justify-center rounded text-neutral-400',
-            'hover:bg-neutral-800 hover:text-neutral-100',
+            'flex h-8 w-8 items-center justify-center rounded text-ink-3',
+            'hover:bg-surface-3 hover:text-ink',
           )}
         >
           <Icon icon={t.icon} width={16} height={16} />

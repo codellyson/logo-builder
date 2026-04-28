@@ -66,6 +66,7 @@ export function ContextMenu({ targetRef, hitTest }: Props) {
 function MenuPanel({ pos, onClose }: { pos: { x: number; y: number }; onClose: () => void }) {
   const nodes = useCanvasStore((s) => s.nodes)
   const selectedIds = useCanvasStore((s) => s.selectedIds)
+  const hasClipboard = useCanvasStore((s) => s.clipboard !== null)
 
   const selected = nodes.filter((n) => selectedIds.includes(n.id))
   const hasSelection = selected.length > 0
@@ -92,10 +93,40 @@ function MenuPanel({ pos, onClose }: { pos: { x: number; y: number }; onClose: (
   return (
     <div
       style={{ position: 'fixed', top, left, zIndex: 50 }}
-      className="w-52 rounded-md border border-neutral-800 bg-neutral-950 p-1 shadow-xl"
+      className="w-52 rounded-md border border-line bg-surface p-1 shadow-xl"
       onMouseDown={(e) => e.stopPropagation()}
       onContextMenu={(e) => e.preventDefault()}
     >
+      <Item
+        icon="lucide:scissors"
+        label="Cut"
+        shortcut="⌘X"
+        disabled={!hasSelection}
+        onClick={() => {
+          useCanvasStore.getState().cutNodes(selectedIds)
+          onClose()
+        }}
+      />
+      <Item
+        icon="lucide:clipboard"
+        label="Copy"
+        shortcut="⌘C"
+        disabled={!hasSelection}
+        onClick={() => {
+          useCanvasStore.getState().copyNodes(selectedIds)
+          onClose()
+        }}
+      />
+      <Item
+        icon="lucide:clipboard-paste"
+        label="Paste"
+        shortcut="⌘V"
+        disabled={!hasClipboard}
+        onClick={() => {
+          useCanvasStore.getState().pasteClipboard()
+          onClose()
+        }}
+      />
       <Item
         icon="lucide:copy"
         label="Duplicate"
@@ -277,19 +308,19 @@ function Item({
       className={cn(
         'flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-xs',
         disabled
-          ? 'cursor-not-allowed text-neutral-600'
+          ? 'cursor-not-allowed text-ink-4'
           : danger
-            ? 'text-neutral-300 hover:bg-red-500/10 hover:text-red-300'
-            : 'text-neutral-300 hover:bg-neutral-800 hover:text-neutral-100',
+            ? 'text-ink-2 hover:bg-red-500/10 hover:text-red-300'
+            : 'text-ink-2 hover:bg-surface-3 hover:text-ink',
       )}
     >
       <Icon icon={icon} width={13} height={13} />
       <span className="flex-1">{label}</span>
-      {shortcut && <span className="text-[10px] text-neutral-600">{shortcut}</span>}
+      {shortcut && <span className="text-[10px] text-ink-4">{shortcut}</span>}
     </button>
   )
 }
 
 function Divider() {
-  return <div className="my-1 border-t border-neutral-800" />
+  return <div className="my-1 border-t border-line" />
 }

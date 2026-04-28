@@ -67,6 +67,24 @@ export function useKeyboardShortcuts(extras?: Extras) {
         if (sel.length) store.duplicateNodes(sel)
         return
       }
+      // ⌘X / ⌘C / ⌘V: internal clipboard. The OS clipboard isn't touched —
+      // this is for moving editor selections only. Field-edit gating above
+      // already let native Cut/Copy/Paste through inputs and contenteditables.
+      if (mod && (e.key === 'x' || e.key === 'X')) {
+        e.preventDefault()
+        if (sel.length) store.cutNodes(sel)
+        return
+      }
+      if (mod && (e.key === 'c' || e.key === 'C')) {
+        e.preventDefault()
+        if (sel.length) store.copyNodes(sel)
+        return
+      }
+      if (mod && (e.key === 'v' || e.key === 'V')) {
+        e.preventDefault()
+        store.pasteClipboard()
+        return
+      }
       if (mod && e.key === ']') {
         if (sel.length === 0) return
         e.preventDefault()
@@ -116,12 +134,21 @@ export function useKeyboardShortcuts(extras?: Extras) {
         store.setToolMode('pen')
         return
       }
+      // Knife tool: K enters, V exits. No drafting state — strokes commit on
+      // pointer-up directly.
+      if (!mod && !e.altKey && !e.shiftKey && e.code === 'KeyK' && store.toolMode !== 'knife') {
+        e.preventDefault()
+        store.setToolMode('knife')
+        return
+      }
       if (
         !mod &&
         !e.altKey &&
         !e.shiftKey &&
         e.code === 'KeyV' &&
-        (store.toolMode === 'pen' || store.toolMode === 'edit-path')
+        (store.toolMode === 'pen' ||
+          store.toolMode === 'edit-path' ||
+          store.toolMode === 'knife')
       ) {
         e.preventDefault()
         if (store.toolMode === 'edit-path') store.exitPathEdit()
@@ -176,6 +203,7 @@ export function useKeyboardShortcuts(extras?: Extras) {
         e.preventDefault()
         if (store.toolMode === 'pen') store.penCancel()
         else if (store.toolMode === 'edit-path') store.exitPathEdit()
+        else if (store.toolMode === 'knife') store.setToolMode('select')
         else if (store.editingBooleanId) store.setEditingBooleanId(null)
         else store.clearSelection()
         return
