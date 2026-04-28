@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { lazy, Suspense, useEffect, useState } from 'react'
 import { Icon } from '@iconify/react'
 import { useCanvasStore } from '@/state/canvas-store'
 import {
@@ -10,6 +10,15 @@ import {
 import { Popover } from '@/ui/popover'
 import { useStore } from 'zustand'
 import { cn } from '@/lib/cn'
+
+// Lazy: the export dialog statically imports the literal-builder, which
+// in turn pulls a JSON.stringify of the entire canvas state — fine on
+// click, wasteful at boot.
+const TemplateExportDialog = lazy(() =>
+  import('@/editor/template-export-dialog').then((m) => ({
+    default: m.TemplateExportDialog,
+  })),
+)
 
 type HeaderProps = {
   onOpenExport?: () => void
@@ -65,6 +74,7 @@ function ActiveProjectChip({ onOpenAll }: { onOpenAll?: () => void }) {
   const name = useCanvasStore((s) => s.activeProjectName)
   const [renaming, setRenaming] = useState(false)
   const [draft, setDraft] = useState(name)
+  const [exportingTemplate, setExportingTemplate] = useState(false)
 
   // Reset the draft whenever the upstream name changes (e.g. project switch
   // through the modal) so the input doesn't show stale text on next open.
@@ -98,6 +108,7 @@ function ActiveProjectChip({ onOpenAll }: { onOpenAll?: () => void }) {
   }
 
   return (
+    <>
     <Popover
       align="start"
       trigger={
@@ -147,6 +158,14 @@ function ActiveProjectChip({ onOpenAll }: { onOpenAll?: () => void }) {
               onOpenAll?.()
             }}
           />
+          <MenuItem
+            icon="lucide:layout-template"
+            label="Export as template…"
+            onClick={() => {
+              close()
+              setExportingTemplate(true)
+            }}
+          />
           <MenuDivider />
           <MenuItem
             icon="lucide:trash-2"
@@ -165,6 +184,12 @@ function ActiveProjectChip({ onOpenAll }: { onOpenAll?: () => void }) {
         </>
       )}
     </Popover>
+      {exportingTemplate && (
+        <Suspense fallback={null}>
+          <TemplateExportDialog onClose={() => setExportingTemplate(false)} />
+        </Suspense>
+      )}
+    </>
   )
 }
 

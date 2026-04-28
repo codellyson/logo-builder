@@ -36,6 +36,7 @@ export function useKeyboardShortcuts(extras?: Extras) {
         return
       }
 
+
       if (mod && (e.key === 'z' || e.key === 'Z')) {
         e.preventDefault()
         if (e.shiftKey) temporal.redo()
