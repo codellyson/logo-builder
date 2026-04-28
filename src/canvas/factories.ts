@@ -149,6 +149,25 @@ export function createIcon(cx: number, cy: number, iconName = 'ph:star-bold', fi
   }
 }
 
+// World-space center of whatever's currently visible on the stage. Used by
+// "click to add" entry points (toolbar, assets panel, etc.) so new nodes
+// land at the user's focus, not at world (0, 0) or the artboard center.
+// Falls back to the artboard center when the stage hasn't reported a size
+// yet (mount race) so the very first click after a fresh load still works.
+export function viewportInsertionCenter(
+  viewport: { x: number; y: number; scale: number },
+  viewportSize: { width: number; height: number },
+  fallback: { stageWidth: number; stageHeight: number },
+): { cx: number; cy: number } {
+  if (viewportSize.width <= 0 || viewportSize.height <= 0) {
+    return { cx: fallback.stageWidth / 2, cy: fallback.stageHeight / 2 }
+  }
+  return {
+    cx: (viewportSize.width / 2 - viewport.x) / viewport.scale,
+    cy: (viewportSize.height / 2 - viewport.y) / viewport.scale,
+  }
+}
+
 // Toolbar-level tokens. Includes 'triangle' as a polygon preset; the actual node
 // type is still 'polygon'.
 export type PrimitiveType =

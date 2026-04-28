@@ -7,7 +7,6 @@ import { fillKonvaProps, strokeKonvaProps } from '@/composition/fills'
 import {
   parseSegments,
   segmentsToPathData,
-  isClosedPath,
   insertSegmentAt,
   type Segment,
 } from '@/composition/path-edit-ops'
@@ -29,15 +28,21 @@ export function PathEditOverlay({ node, scale }: Props) {
 
   // Local segment state — source of truth during edit. Synced from node.data
   // when the edited node changes OR when node.data changes (undo/redo) but not
-  // while actively dragging.
+  // while actively dragging. Subpath boundaries (start + closed flags) ride on
+  // the segments themselves, so reconstructing pathData needs no extra state.
   const [segments, setSegments] = useState<Segment[]>(() => parseSegments(node.data))
-  const [closed, setClosed] = useState<boolean>(() => isClosedPath(node.data))
   const draggingRef = useRef(false)
+  // Tracks the node.data we last synced from. Lets us short-circuit when an
+  // updateNode round-trip emits the same data we just produced — without this
+  // guard, react-konva's prop churn during drag would re-fire the effect and
+  // schedule another setSegments, blowing past React's update-depth limit.
+  const lastSyncedDataRef = useRef<string>(node.data)
 
   useEffect(() => {
     if (draggingRef.current) return
+    if (node.data === lastSyncedDataRef.current) return
+    lastSyncedDataRef.current = node.data
     setSegments(parseSegments(node.data))
-    setClosed(isClosedPath(node.data))
   }, [node.data])
 
   const selSet = new Set(selectedIndices)
@@ -45,11 +50,13 @@ export function PathEditOverlay({ node, scale }: Props) {
   const strokeWidth = 1.5 / scale
   const handleDotRadius = 3 / scale
 
-  const previewData = segmentsToPathData(segments, closed)
+  const previewData = segmentsToPathData(segments)
 
   const commit = (next: Segment[]) => {
-    const data = segmentsToPathData(next, closed)
-    if (data) updateNode(node.id, { data })
+    const data = segmentsToPathData(next)
+    if (!data) return
+    lastSyncedDataRef.current = data
+    updateNode(node.id, { data })
   }
 
   const updateSegment = (index: number, patch: Partial<Segment>) => {
@@ -87,13 +94,14 @@ export function PathEditOverlay({ node, scale }: Props) {
           const pos = group?.getRelativePointerPosition()
           if (!pos) return
           const inserted = insertSegmentAt(
-            segmentsToPathData(segments, closed),
+            segmentsToPathData(segments),
             pos.x,
             pos.y,
             12 / scale,
           )
           if (!inserted) return
           const nextSegs = parseSegments(inserted.data)
+          lastSyncedDataRef.current = inserted.data
           setSegments(nextSegs)
           updateNode(node.id, { data: inserted.data })
           setSelected([inserted.insertedIndex])

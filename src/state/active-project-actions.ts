@@ -75,6 +75,17 @@ export async function createAndActivateFromTemplate(
   return rec
 }
 
+// Imports a `.idan` file as a brand-new project and switches to it. The
+// snapshot's nodes are re-id'd by createProjectFromSnapshot so a re-import
+// of the same file doesn't collide with existing project ids in the DB.
+export async function createAndActivateFromIdanFile(file: File): Promise<ProjectRecord> {
+  const { readIdanFile } = await import('@/persistence/idan-file')
+  const { name, snapshot } = await readIdanFile(file)
+  const rec = await createProjectFromSnapshot(name || 'Untitled', snapshot)
+  activateProject(rec)
+  return rec
+}
+
 // Duplicates the active project (full snapshot copy) and switches to the
 // copy so the user can keep editing without disturbing the original.
 export async function duplicateActiveProject(): Promise<ProjectRecord | null> {

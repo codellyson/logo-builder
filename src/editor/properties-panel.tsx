@@ -196,8 +196,9 @@ function StarFields({ node }: { node: StarNode }) {
       <FieldRow label="Fill">
         <FillEditor
           value={node.fill}
-          onChange={(f) => f && update(node.id, { fill: f })}
+          onChange={(f) => update(node.id, { fill: f })}
           bbox={getNodeLocalBbox(node) ?? FILL_BBOX_FALLBACK}
+          allowNone
         />
       </FieldRow>
       <FieldRow label="Stroke">
@@ -254,8 +255,9 @@ function PolygonFields({ node }: { node: PolygonNode }) {
       <FieldRow label="Fill">
         <FillEditor
           value={node.fill}
-          onChange={(f) => f && update(node.id, { fill: f })}
+          onChange={(f) => update(node.id, { fill: f })}
           bbox={getNodeLocalBbox(node) ?? FILL_BBOX_FALLBACK}
+          allowNone
         />
       </FieldRow>
       <FieldRow label="Stroke">
@@ -544,8 +546,9 @@ function RectFields({ node }: { node: RectNode }) {
       <FieldRow label="Fill">
         <FillEditor
           value={node.fill}
-          onChange={(f) => f && update(node.id, { fill: f })}
+          onChange={(f) => update(node.id, { fill: f })}
           bbox={getNodeLocalBbox(node) ?? FILL_BBOX_FALLBACK}
+          allowNone
         />
       </FieldRow>
       <FieldRow label="Stroke">
@@ -600,8 +603,9 @@ function EllipseFields({ node }: { node: EllipseNode }) {
       <FieldRow label="Fill">
         <FillEditor
           value={node.fill}
-          onChange={(f) => f && update(node.id, { fill: f })}
+          onChange={(f) => update(node.id, { fill: f })}
           bbox={getNodeLocalBbox(node) ?? FILL_BBOX_FALLBACK}
+          allowNone
         />
       </FieldRow>
       <FieldRow label="Stroke">
@@ -716,8 +720,9 @@ function TextFields({ node }: { node: TextNode }) {
       <FieldRow label="Fill">
         <FillEditor
           value={node.fill}
-          onChange={(f) => f && update(node.id, { fill: f })}
+          onChange={(f) => update(node.id, { fill: f })}
           bbox={getNodeLocalBbox(node) ?? FILL_BBOX_FALLBACK}
+          allowNone
         />
       </FieldRow>
     </div>
@@ -737,8 +742,9 @@ function IconFields({ node }: { node: IconNode }) {
       <FieldRow label="Fill">
         <FillEditor
           value={node.fill}
-          onChange={(f) => f && update(node.id, { fill: f })}
+          onChange={(f) => update(node.id, { fill: f })}
           bbox={getNodeLocalBbox(node) ?? FILL_BBOX_FALLBACK}
+          allowNone
         />
       </FieldRow>
       {node.fill.type !== 'solid' && (

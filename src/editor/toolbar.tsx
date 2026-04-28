@@ -1,6 +1,6 @@
 import { Icon } from '@iconify/react'
 import { useCanvasStore } from '@/state/canvas-store'
-import { createByType, type PrimitiveType } from '@/canvas/factories'
+import { createByType, viewportInsertionCenter, type PrimitiveType } from '@/canvas/factories'
 import { cn } from '@/lib/cn'
 
 const TOOLS: Array<{ type: PrimitiveType; icon: string; label: string }> = [
@@ -23,10 +23,15 @@ export function Toolbar() {
 
   const onAdd = (type: PrimitiveType) => {
     if (toolMode === 'pen') setToolMode('select')
-    const existing = useCanvasStore.getState().nodes.length
+    const state = useCanvasStore.getState()
+    const { cx, cy } = viewportInsertionCenter(state.viewport, state.viewportSize, {
+      stageWidth,
+      stageHeight,
+    })
+    // Small staircase offset so repeat clicks don't stack identical nodes.
     const step = 24
-    const offset = (existing % 6) * step - step * 2.5
-    addNode(createByType(type, stageWidth / 2 + offset, stageHeight / 2 + offset))
+    const offset = (state.nodes.length % 6) * step - step * 2.5
+    addNode(createByType(type, cx + offset, cy + offset))
   }
 
   return (

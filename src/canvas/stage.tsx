@@ -17,6 +17,7 @@ import { GradientHandleOverlay } from '@/canvas/gradient-handle-overlay'
 const PathEditOverlay = lazy(() =>
   import('@/canvas/path-edit-overlay').then((m) => ({ default: m.PathEditOverlay })),
 )
+import { ContextMenu } from '@/editor/context-menu'
 import { computeSnap, type Bbox, type SnapGuide } from '@/composition/alignment'
 import { constrainToAxis } from '@/composition/geom'
 import { FONTS_LOADED_EVENT } from '@/fonts/preload'
@@ -95,13 +96,16 @@ export function EditorCanvas() {
   useEffect(() => {
     const el = containerRef.current
     if (!el) return
+    const setViewportSize = useCanvasStore.getState().setViewportSize
     const ro = new ResizeObserver(() => {
       const rect = el.getBoundingClientRect()
       setSize({ width: rect.width, height: rect.height })
+      setViewportSize(rect.width, rect.height)
     })
     ro.observe(el)
     const rect = el.getBoundingClientRect()
     setSize({ width: rect.width, height: rect.height })
+    setViewportSize(rect.width, rect.height)
     return () => ro.disconnect()
   }, [])
 
@@ -485,6 +489,29 @@ export function EditorCanvas() {
     if (firstError) setDropError(firstError)
   }
 
+  // Right-click hit test — converts client coords to a node id under the
+  // cursor by walking the Konva tree at that point and asking each
+  // ancestor for its `id` (set by NodeRenderer's commonProps). Returns
+  // null on empty canvas / artboard background.
+  const hitTestForContextMenu = (clientX: number, clientY: number): string | null => {
+    const stage = stageRef.current
+    const rect = containerRef.current?.getBoundingClientRect()
+    if (!stage || !rect) return null
+    const target = stage.getIntersection({
+      x: clientX - rect.left,
+      y: clientY - rect.top,
+    })
+    if (!target) return null
+    let cur: Konva.Node | null = target
+    const knownIds = new Set(nodes.map((n) => n.id))
+    while (cur) {
+      const id = cur.id?.()
+      if (id && knownIds.has(id)) return id
+      cur = cur.getParent() as Konva.Node | null
+    }
+    return null
+  }
+
   return (
     <div
       ref={containerRef}
@@ -628,6 +655,7 @@ export function EditorCanvas() {
           </button>
         </div>
       )}
+      <ContextMenu targetRef={containerRef} hitTest={hitTestForContextMenu} />
     </div>
   )
 }

@@ -107,7 +107,7 @@ export type RectNode = NodeBase & {
   type: 'rect'
   width: number
   height: number
-  fill: Fill
+  fill: Fill | null
   stroke: Fill | null
   strokeWidth: number
   strokeJoin?: StrokeJoin
@@ -118,7 +118,7 @@ export type EllipseNode = NodeBase & {
   type: 'ellipse'
   radiusX: number
   radiusY: number
-  fill: Fill
+  fill: Fill | null
   stroke: Fill | null
   strokeWidth: number
 }
@@ -140,7 +140,7 @@ export type TextNode = NodeBase & {
   fontFamily: string
   fontSize: number
   fontStyle: 'normal' | 'bold' | 'italic' | 'bold italic'
-  fill: Fill
+  fill: Fill | null
   align: 'left' | 'center' | 'right'
   letterSpacing: number
   width: number
@@ -149,7 +149,7 @@ export type TextNode = NodeBase & {
 export type IconNode = NodeBase & {
   type: 'icon'
   iconName: string
-  fill: Fill
+  fill: Fill | null
   width: number
   height: number
 }
@@ -170,7 +170,7 @@ export type PolygonNode = NodeBase & {
   type: 'polygon'
   sides: number   // >= 3
   radius: number  // circumscribed radius
-  fill: Fill
+  fill: Fill | null
   stroke: Fill | null
   strokeWidth: number
   strokeJoin?: StrokeJoin
@@ -181,7 +181,7 @@ export type StarNode = NodeBase & {
   points: number         // >= 3
   outerRadius: number
   innerRadius: number    // 0 < inner < outer
-  fill: Fill
+  fill: Fill | null
   stroke: Fill | null
   strokeWidth: number
   strokeJoin?: StrokeJoin

@@ -65,6 +65,11 @@ type CanvasState = {
   stageWidth: number
   stageHeight: number
   viewport: Viewport
+  // Screen-pixel size of the canvas surface, mirrored from the Stage's
+  // ResizeObserver. Lives in the store so non-canvas UI (toolbar, etc.)
+  // can compute the world-space center of the visible viewport without
+  // reaching into the stage's local state.
+  viewportSize: { width: number; height: number }
   palette: Palette
   artboardBackground: string
   fitRequestId: number
@@ -118,6 +123,7 @@ type CanvasActions = {
   selectAll: () => void
   nudgeSelected: (dx: number, dy: number) => void
   setViewport: (v: Partial<Viewport>) => void
+  setViewportSize: (w: number, h: number) => void
   setStageSize: (w: number, h: number) => void
   setPaletteSeed: (hex: string) => void
   setPalette: (palette: Palette) => void
@@ -141,6 +147,7 @@ const initialState: CanvasState = {
   stageWidth: 800,
   stageHeight: 800,
   viewport: { x: 0, y: 0, scale: 1 },
+  viewportSize: { width: 0, height: 0 },
   palette: DEFAULT_PALETTE,
   artboardBackground: '#ffffff',
   fitRequestId: 0,
@@ -809,6 +816,12 @@ export const useCanvasStore = create<CanvasState & CanvasActions>()(
         }),
 
       setViewport: (v) => set((s) => ({ viewport: { ...s.viewport, ...v } })),
+      setViewportSize: (width, height) =>
+        set((s) =>
+          s.viewportSize.width === width && s.viewportSize.height === height
+            ? s
+            : { viewportSize: { width, height } },
+        ),
 
       setStageSize: (w, h) => set({ stageWidth: w, stageHeight: h }),
 

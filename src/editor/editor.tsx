@@ -13,6 +13,7 @@ import { EmptyState } from '@/editor/empty-state'
 import { useAutosave, restoreActiveProjectOnMount } from '@/state/autosave'
 import { useCanvasStore } from '@/state/canvas-store'
 import { bootCustomFonts } from '@/fonts/custom-fonts'
+import { DraggablePanel } from '@/editor/draggable-panel'
 
 // Modal-only components are lazy so their static-import deps (jszip,
 // svgo for ExportModal; serializeSvg → opentype for ProjectsModal
@@ -108,16 +109,25 @@ export function Editor() {
         </aside>
         <main className="relative flex-1 overflow-hidden bg-neutral-900">
           <EditorCanvas />
-          <div className="pointer-events-none absolute left-3 top-3">
+          <DraggablePanel name="toolbar" defaultStyle={{ position: 'absolute', left: 12, top: 12 }}>
             <Toolbar />
-          </div>
-          <div className="pointer-events-none absolute left-1/2 top-3 flex -translate-x-1/2 gap-2">
+          </DraggablePanel>
+          <DraggablePanel
+            name="composition"
+            defaultStyle={{
+              position: 'absolute',
+              left: '50%',
+              top: 12,
+              transform: 'translateX(-50%)',
+            }}
+            className="flex gap-2"
+          >
             <CompositionToolbar />
             <AlignToolbar />
-          </div>
-          <div className="pointer-events-none absolute bottom-3 right-3">
+          </DraggablePanel>
+          <DraggablePanel name="zoom" defaultStyle={{ position: 'absolute', right: 12, bottom: 12 }}>
             <ZoomControls />
-          </div>
+          </DraggablePanel>
           {!hasNodes && <EmptyState />}
         </main>
         <aside className="flex w-72 shrink-0 flex-col border-l border-neutral-800 bg-neutral-950">

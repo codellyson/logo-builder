@@ -1,4 +1,5 @@
 import { Icon } from '@iconify/react'
+import { resetPanelPositions } from '@/editor/draggable-panel'
 
 type Props = {
   onClose: () => void
@@ -116,6 +117,16 @@ export function ShortcutsModal({ onClose }: Props) {
               </div>
             </div>
           ))}
+        </div>
+        <div className="flex items-center justify-end border-t border-neutral-800 px-4 py-3">
+          <button
+            type="button"
+            onClick={resetPanelPositions}
+            className="flex items-center gap-1.5 rounded border border-neutral-800 bg-neutral-900 px-2.5 py-1.5 text-[11px] text-neutral-400 hover:bg-neutral-800 hover:text-neutral-200"
+          >
+            <Icon icon="lucide:rotate-ccw" width={11} height={11} />
+            Reset toolbar positions
+          </button>
         </div>
       </div>
     </div>

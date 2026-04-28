@@ -9,7 +9,7 @@ import {
   renameAsset,
 } from '@/persistence/assets'
 import type { AssetRecord } from '@/persistence/db'
-import { createAsset as makeAssetNode } from '@/canvas/factories'
+import { createAsset as makeAssetNode, viewportInsertionCenter } from '@/canvas/factories'
 import { cn } from '@/lib/cn'
 
 const ACCEPT = 'image/png,image/jpeg,image/webp,image/gif,image/svg+xml'
@@ -82,10 +82,14 @@ export function AssetsPanel() {
   }
 
   const onPlace = (asset: AssetRecord) => {
-    const { nodes } = useCanvasStore.getState()
+    const state = useCanvasStore.getState()
+    const { cx, cy } = viewportInsertionCenter(state.viewport, state.viewportSize, {
+      stageWidth,
+      stageHeight,
+    })
     const step = 24
-    const offset = (nodes.length % 6) * step - step * 2.5
-    addNode(makeAssetNode(stageWidth / 2 + offset, stageHeight / 2 + offset, asset))
+    const offset = (state.nodes.length % 6) * step - step * 2.5
+    addNode(makeAssetNode(cx + offset, cy + offset, asset))
   }
 
   const onCommitRename = async (id: string, name: string) => {

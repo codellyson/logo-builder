@@ -1,12 +1,14 @@
-import { lazy, Suspense, useEffect, useState } from 'react'
+import { lazy, Suspense, useEffect, useRef, useState } from 'react'
 import { Icon } from '@iconify/react'
 import { useCanvasStore } from '@/state/canvas-store'
 import {
+  createAndActivateFromIdanFile,
   createAndActivateNewProject,
   deleteActiveProject,
   duplicateActiveProject,
   renameActiveProject,
 } from '@/state/active-project-actions'
+import { snapshotFromStore } from '@/state/autosave'
 import { Popover } from '@/ui/popover'
 import { useStore } from 'zustand'
 import { cn } from '@/lib/cn'
@@ -75,6 +77,22 @@ function ActiveProjectChip({ onOpenAll }: { onOpenAll?: () => void }) {
   const [renaming, setRenaming] = useState(false)
   const [draft, setDraft] = useState(name)
   const [exportingTemplate, setExportingTemplate] = useState(false)
+  const [importError, setImportError] = useState<string | null>(null)
+  const fileInputRef = useRef<HTMLInputElement | null>(null)
+
+  const handleSaveToFile = async () => {
+    const { downloadIdanFile } = await import('@/persistence/idan-file')
+    downloadIdanFile(name, snapshotFromStore())
+  }
+
+  const handleOpenFromFile = async (file: File) => {
+    setImportError(null)
+    try {
+      await createAndActivateFromIdanFile(file)
+    } catch (err) {
+      setImportError(err instanceof Error ? err.message : 'Failed to open file.')
+    }
+  }
 
   // Reset the draft whenever the upstream name changes (e.g. project switch
   // through the modal) so the input doesn't show stale text on next open.
@@ -168,6 +186,23 @@ function ActiveProjectChip({ onOpenAll }: { onOpenAll?: () => void }) {
           />
           <MenuDivider />
           <MenuItem
+            icon="lucide:download"
+            label="Save to file…"
+            onClick={async () => {
+              close()
+              await handleSaveToFile()
+            }}
+          />
+          <MenuItem
+            icon="lucide:upload"
+            label="Open file…"
+            onClick={() => {
+              close()
+              fileInputRef.current?.click()
+            }}
+          />
+          <MenuDivider />
+          <MenuItem
             icon="lucide:trash-2"
             label="Delete"
             danger
@@ -188,6 +223,28 @@ function ActiveProjectChip({ onOpenAll }: { onOpenAll?: () => void }) {
         <Suspense fallback={null}>
           <TemplateExportDialog onClose={() => setExportingTemplate(false)} />
         </Suspense>
+      )}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept=".idan,application/json"
+        className="hidden"
+        onChange={async (e) => {
+          const f = e.target.files?.[0]
+          // Reset the input so picking the same file twice in a row still
+          // fires onChange (browsers gate by value-equality).
+          e.target.value = ''
+          if (f) await handleOpenFromFile(f)
+        }}
+      />
+      {importError && (
+        <div
+          role="alert"
+          className="fixed left-1/2 top-16 z-50 -translate-x-1/2 rounded-md border border-red-500/30 bg-red-500/10 px-3 py-2 text-xs text-red-200 shadow-lg"
+          onClick={() => setImportError(null)}
+        >
+          {importError}
+        </div>
       )}
     </>
   )

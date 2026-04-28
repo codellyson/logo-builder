@@ -20,6 +20,12 @@ export function CompositionToolbar() {
     (n) => n.type === 'rect' || n.type === 'ellipse' || n.type === 'line',
   )
   const hasText = selected.some((n) => n.type === 'text')
+  // Only paths whose data has more than one M command can be split. Counting
+  // here keeps the button correctly enabled/disabled without paying a paper
+  // parse on every render.
+  const canBreakApart = selected.some(
+    (n) => n.type === 'path' && (n.data.match(/[Mm]/g) ?? []).length > 1,
+  )
 
   // Boolean ops need 2+ shapes with fill or a positive-width stroke, sharing a parent.
   const sharedParentOk =
@@ -54,6 +60,30 @@ export function CompositionToolbar() {
         }
       }
     }
+    if (newIds.length) select(newIds)
+  }
+
+  const doBreakApart = async () => {
+    const { splitSubpaths } = await import('@/composition/path-edit-ops')
+    const newIds: string[] = []
+    const toRemove: string[] = []
+    for (const n of selected) {
+      if (n.type !== 'path') continue
+      const parts = splitSubpaths(n.data)
+      if (parts.length < 2) continue
+      const created: PathNode[] = parts.map((p, i) => ({
+        ...n,
+        id: newId(),
+        name: `${n.name} ${i + 1}`,
+        data: p.data,
+        width: p.bbox.width,
+        height: p.bbox.height,
+      }))
+      addNodes(created)
+      toRemove.push(n.id)
+      for (const c of created) newIds.push(c.id)
+    }
+    if (toRemove.length) removeNodes(toRemove)
     if (newIds.length) select(newIds)
   }
 
@@ -166,6 +196,12 @@ export function CompositionToolbar() {
         title="Text → Outlines"
         disabled={!hasText}
         onClick={doTextToOutlines}
+      />
+      <Tool
+        icon="lucide:scissors"
+        title="Break apart subpaths"
+        disabled={!canBreakApart}
+        onClick={doBreakApart}
       />
     </div>
   )
