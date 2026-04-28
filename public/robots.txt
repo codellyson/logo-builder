@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://builty.kreativekorna.com/sitemap.xml

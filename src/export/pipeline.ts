@@ -202,6 +202,6 @@ function readmeText(brandName: string, selection: ExportSelection): string {
   if (selection.formats.includes('favicon')) {
     lines.push('favicon/     favicon.ico + PNGs for web use')
   }
-  lines.push('', 'Generated with Logo Builder.')
+  lines.push('', 'Generated with Builty.')
   return lines.join('\n')
 }

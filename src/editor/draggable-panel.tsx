@@ -4,7 +4,7 @@ import { cn } from '@/lib/cn'
 
 type Pos = { x: number; y: number }
 
-const STORAGE_PREFIX = 'idan.panel.'
+const STORAGE_PREFIX = 'builty.panel.'
 
 function storageKey(name: string): string {
   return `${STORAGE_PREFIX}${name}.pos`
@@ -34,7 +34,7 @@ function writeStoredPos(name: string, pos: Pos): void {
 // Clears every panel's stored position. Called from the Reset toolbars
 // menu item; broadcasts a custom event so mounted DraggablePanels reset
 // their state without a page reload.
-const RESET_EVENT = 'idan.panel.reset'
+const RESET_EVENT = 'builty.panel.reset'
 
 export function resetPanelPositions(): void {
   for (let i = localStorage.length - 1; i >= 0; i--) {

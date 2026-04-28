@@ -2,7 +2,7 @@ import { lazy, Suspense, useEffect, useRef, useState } from 'react'
 import { Icon } from '@iconify/react'
 import { useCanvasStore } from '@/state/canvas-store'
 import {
-  createAndActivateFromIdanFile,
+  createAndActivateFromBuiltyFile,
   createAndActivateNewProject,
   deleteActiveProject,
   duplicateActiveProject,
@@ -38,7 +38,7 @@ export function EditorHeader({ onOpenExport, onOpenProjects, canExport }: Header
     <header className="flex h-12 shrink-0 items-center justify-between border-b border-neutral-800 bg-neutral-950 px-4">
       <div className="flex items-center gap-3">
         <div className="h-5 w-5 rounded-sm bg-gradient-to-br from-fuchsia-500 to-indigo-500" />
-        <span className="text-sm font-medium tracking-tight">Logo Builder</span>
+        <span className="text-sm font-medium tracking-tight">Builty</span>
         <ActiveProjectChip onOpenAll={onOpenProjects} />
       </div>
 
@@ -81,14 +81,14 @@ function ActiveProjectChip({ onOpenAll }: { onOpenAll?: () => void }) {
   const fileInputRef = useRef<HTMLInputElement | null>(null)
 
   const handleSaveToFile = async () => {
-    const { downloadIdanFile } = await import('@/persistence/idan-file')
-    downloadIdanFile(name, snapshotFromStore())
+    const { downloadBuiltyFile } = await import('@/persistence/builty-file')
+    downloadBuiltyFile(name, snapshotFromStore())
   }
 
   const handleOpenFromFile = async (file: File) => {
     setImportError(null)
     try {
-      await createAndActivateFromIdanFile(file)
+      await createAndActivateFromBuiltyFile(file)
     } catch (err) {
       setImportError(err instanceof Error ? err.message : 'Failed to open file.')
     }
@@ -227,7 +227,7 @@ function ActiveProjectChip({ onOpenAll }: { onOpenAll?: () => void }) {
       <input
         ref={fileInputRef}
         type="file"
-        accept=".idan,application/json"
+        accept=".builty,application/json"
         className="hidden"
         onChange={async (e) => {
           const f = e.target.files?.[0]
