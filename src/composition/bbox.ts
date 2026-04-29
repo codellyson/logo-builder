@@ -72,11 +72,58 @@ export function getNodeBbox(node: CanvasNode): Bbox | null {
         node.rotation,
       )
     }
-    case 'asset':
-      return boxWithRotation(node.x, node.y, 0, 0, node.width, node.height, node.rotation)
+    case 'asset': {
+      const c = node.crop
+      if (!c) return boxWithRotation(node.x, node.y, 0, 0, node.width, node.height, node.rotation)
+      const pts =
+        c.kind === 'rect' ? rotatedRectCorners(c) : parseLineSegmentPoints(c.data)
+      return vertexBbox(node.x, node.y, pts, node.rotation)
+    }
     case 'group':
       return null
   }
+}
+
+// Rotated-rect → 4 corner points in image-local coords.
+function rotatedRectCorners(c: {
+  x: number
+  y: number
+  width: number
+  height: number
+  rotation: number
+}): number[] {
+  const hw = c.width / 2
+  const hh = c.height / 2
+  const cxLocal = c.x + hw
+  const cyLocal = c.y + hh
+  const rad = (c.rotation * Math.PI) / 180
+  const cos = Math.cos(rad)
+  const sin = Math.sin(rad)
+  const offsets: Array<[number, number]> = [
+    [-hw, -hh],
+    [hw, -hh],
+    [hw, hh],
+    [-hw, hh],
+  ]
+  const pts: number[] = []
+  for (const [ox, oy] of offsets) {
+    pts.push(cxLocal + ox * cos - oy * sin)
+    pts.push(cyLocal + ox * sin + oy * cos)
+  }
+  return pts
+}
+
+// Parse `M x,y L x,y ... Z` path data into an x,y point array. Polygon /
+// lasso crops emit only M / L / Z (no curves) so a simple split is enough
+// — keeps paper.js out of the eager bbox path.
+function parseLineSegmentPoints(d: string): number[] {
+  const out: number[] = []
+  const re = /[ML]\s*(-?\d+(?:\.\d+)?)[\s,]+(-?\d+(?:\.\d+)?)/g
+  let m: RegExpExecArray | null
+  while ((m = re.exec(d)) !== null) {
+    out.push(parseFloat(m[1]), parseFloat(m[2]))
+  }
+  return out
 }
 
 // Computes the union bbox of multiple nodes. Groups are expanded into their
@@ -153,8 +200,26 @@ export function getNodeLocalBbox(node: CanvasNode): Bbox | null {
       if (!node.cache || node.cache.width === 0 || node.cache.height === 0) return null
       return { x: 0, y: 0, width: node.cache.width, height: node.cache.height }
     }
-    case 'asset':
-      return { x: 0, y: 0, width: node.width, height: node.height }
+    case 'asset': {
+      const c = node.crop
+      if (!c) return { x: 0, y: 0, width: node.width, height: node.height }
+      // Local frame ignores image rotation but must still honor the crop's
+      // own geometry so callers see the visible region, not the source rect.
+      const pts =
+        c.kind === 'rect' ? rotatedRectCorners(c) : parseLineSegmentPoints(c.data)
+      let minX = Infinity
+      let minY = Infinity
+      let maxX = -Infinity
+      let maxY = -Infinity
+      for (let i = 0; i < pts.length; i += 2) {
+        if (pts[i] < minX) minX = pts[i]
+        if (pts[i] > maxX) maxX = pts[i]
+        if (pts[i + 1] < minY) minY = pts[i + 1]
+        if (pts[i + 1] > maxY) maxY = pts[i + 1]
+      }
+      if (minX === Infinity) return { x: 0, y: 0, width: 0, height: 0 }
+      return { x: minX, y: minY, width: maxX - minX, height: maxY - minY }
+    }
     case 'line':
     case 'group':
       return null

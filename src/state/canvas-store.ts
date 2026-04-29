@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 import { temporal } from 'zundo'
 import { useStore } from 'zustand'
-import type { BooleanCache, BooleanNode, BooleanOp, CanvasNode, Effect, Fill, GroupNode, PathNode, Viewport } from '@/canvas/types'
+import type { BooleanCache, BooleanNode, BooleanOp, CanvasNode, Effect, Fill, GroupNode, ImageCrop, ImageCropPath, ImageCropRect, PathNode, Viewport } from '@/canvas/types'
 import { solidFill } from '@/composition/fills'
 import { newId } from '@/lib/id'
 import { DEFAULT_PALETTE, generatePalette, type Palette } from '@/colors/palette'
@@ -11,11 +11,33 @@ import { viewportInsertionCenter } from '@/canvas/factories'
 export type AlignEdge = 'left' | 'hcenter' | 'right' | 'top' | 'vcenter' | 'bottom'
 export type DistributeAxis = 'h' | 'v'
 
-export type ToolMode = 'select' | 'pen' | 'edit-path' | 'knife'
+export type ToolMode = 'select' | 'pen' | 'edit-path' | 'knife' | 'crop-image'
 
 export type PathEditState = {
   nodeId: string
   selectedSegmentIndices: number[]
+} | null
+
+export type CropMode = 'rect' | 'polygon' | 'lasso'
+
+// In-progress image crop. The draft is committed onto the asset node (as
+// `crop`) on Apply; cancel discards it. Lives on the store so the canvas
+// transformer / overlay / keyboard can all observe it.
+//
+// Rect drafts use the same shape as the committed `ImageCropRect`. Polygon
+// / lasso drafts are point arrays — open while still being traced, then
+// converted to path-data on close (Polygon: click first anchor / Lasso:
+// pointer-up). Apply turns either draft form into a final `ImageCrop`.
+export type CropPathDraft = {
+  kind: 'path'
+  points: number[] // x, y, x, y, ...
+  closed: boolean
+}
+
+export type CropEditState = {
+  nodeId: string
+  mode: CropMode
+  draft: ImageCropRect | CropPathDraft
 } | null
 
 // Handle deltas are relative to the segment's anchor point.
@@ -43,6 +65,27 @@ export type ClipboardPayload = {
   nodes: CanvasNode[]
   rootIds: string[]
   bbox: { x: number; y: number; width: number; height: number }
+}
+
+// Converts a crop draft into the final committed shape, or null if it's
+// degenerate. Rect drafts collapse to null when below ~half a pixel in
+// either axis (would render the image invisible). Path drafts require a
+// closed loop with at least 3 points (a triangle is the minimum
+// non-degenerate region) and emit `M ... L ... Z` data.
+function finalizeCropDraft(
+  draft: ImageCropRect | CropPathDraft,
+): ImageCrop | null {
+  if (draft.kind === 'rect') {
+    if (draft.width < 0.5 || draft.height < 0.5) return null
+    return draft
+  }
+  if (!draft.closed || draft.points.length < 6) return null
+  const pts = draft.points
+  let d = `M${pts[0]},${pts[1]}`
+  for (let i = 2; i < pts.length; i += 2) d += ` L${pts[i]},${pts[i + 1]}`
+  d += ' Z'
+  const path: ImageCropPath = { kind: 'path', data: d }
+  return path
 }
 
 function invalidateBooleanAncestors(
@@ -88,6 +131,7 @@ type CanvasState = {
   toolMode: ToolMode
   penDraft: PenDraftState
   pathEditState: PathEditState
+  cropEditState: CropEditState
   clipboard: ClipboardPayload | null
   // Identity of the project the autosave loop writes to. Mirrored from the
   // localStorage-backed active id so components can subscribe and re-render
@@ -133,6 +177,12 @@ type CanvasActions = {
   enterPathEdit: (nodeId: string) => void
   setPathEditSelectedIndices: (indices: number[]) => void
   exitPathEdit: () => void
+  enterImageCrop: (nodeId: string) => void
+  setCropMode: (mode: CropMode) => void
+  updateCropDraft: (patch: Partial<ImageCropRect> | Partial<CropPathDraft>) => void
+  applyCrop: () => void
+  cancelCrop: () => void
+  resetCrop: (nodeId: string) => void
   alignSelection: (edge: AlignEdge, toArtboard?: boolean) => void
   distributeSelection: (axis: DistributeAxis) => void
   selectAll: () => void
@@ -170,6 +220,7 @@ const initialState: CanvasState = {
   toolMode: 'select',
   penDraft: null,
   pathEditState: null,
+  cropEditState: null,
   clipboard: null,
   activeProjectId: null,
   activeProjectName: 'Untitled',
@@ -756,6 +807,94 @@ export const useCanvasStore = create<CanvasState & CanvasActions>()(
           toolMode: 'select',
           pathEditState: null,
         }),
+
+      enterImageCrop: (nodeId) => {
+        const state = get()
+        const n = state.nodes.find((x) => x.id === nodeId)
+        if (!n || n.type !== 'asset') return
+        // Re-entry always starts in Rect mode (per IMAGE-CROP-V2). If the
+        // node already has a rect crop, surface it; otherwise seed with a
+        // full-image rect. Path crops show as the existing render but the
+        // initial draft is a fresh full-image rect — switching to Polygon
+        // / Lasso clears it for a fresh trace.
+        const draft: ImageCropRect =
+          n.crop && n.crop.kind === 'rect'
+            ? { ...n.crop }
+            : { kind: 'rect', x: 0, y: 0, width: n.width, height: n.height, rotation: 0 }
+        set({
+          toolMode: 'crop-image',
+          cropEditState: { nodeId, mode: 'rect', draft },
+          selectedIds: [nodeId],
+          penDraft: null,
+          pathEditState: null,
+          editingBooleanId: null,
+        })
+      },
+
+      setCropMode: (mode) => {
+        const state = get()
+        if (!state.cropEditState) return
+        const n = state.nodes.find((x) => x.id === state.cropEditState!.nodeId)
+        if (!n || n.type !== 'asset') return
+        const draft: ImageCropRect | CropPathDraft =
+          mode === 'rect'
+            ? { kind: 'rect', x: 0, y: 0, width: n.width, height: n.height, rotation: 0 }
+            : { kind: 'path', points: [], closed: false }
+        set({
+          cropEditState: { ...state.cropEditState, mode, draft },
+        })
+      },
+
+      updateCropDraft: (patch) =>
+        set((s) => {
+          if (!s.cropEditState) return s
+          const cur = s.cropEditState.draft
+          // Patches are always partial-of-the-current-kind; switching shape
+          // happens via setCropMode. Merge in place.
+          if (cur.kind === 'rect') {
+            return {
+              cropEditState: {
+                ...s.cropEditState,
+                draft: { ...cur, ...(patch as Partial<ImageCropRect>) },
+              },
+            }
+          }
+          return {
+            cropEditState: {
+              ...s.cropEditState,
+              draft: { ...cur, ...(patch as Partial<CropPathDraft>) },
+            },
+          }
+        }),
+
+      applyCrop: () => {
+        const state = get()
+        if (!state.cropEditState) return
+        const { nodeId, draft } = state.cropEditState
+        const committed = finalizeCropDraft(draft)
+        set((s) => ({
+          nodes: committed
+            ? s.nodes.map((n) =>
+                n.id === nodeId && n.type === 'asset' ? { ...n, crop: committed } : n,
+              )
+            : s.nodes,
+          toolMode: 'select',
+          cropEditState: null,
+        }))
+      },
+
+      cancelCrop: () =>
+        set({
+          toolMode: 'select',
+          cropEditState: null,
+        }),
+
+      resetCrop: (nodeId) =>
+        set((s) => ({
+          nodes: s.nodes.map((n) =>
+            n.id === nodeId && n.type === 'asset' ? { ...n, crop: null } : n,
+          ),
+        })),
 
       alignSelection: (edge, toArtboard = false) => {
         const state = get()

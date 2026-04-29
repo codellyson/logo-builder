@@ -105,6 +105,19 @@ export function useKeyboardShortcuts(extras?: Extras) {
           store.penUndoLastAnchor()
           return
         }
+        // Polygon crop in progress: pop the last anchor. If we're already
+        // closed, re-open before popping so the user can keep editing.
+        if (store.toolMode === 'crop-image' && store.cropEditState) {
+          const d = store.cropEditState.draft
+          if (d.kind === 'path' && d.points.length > 0) {
+            e.preventDefault()
+            store.updateCropDraft({
+              points: d.points.slice(0, -2),
+              closed: false,
+            })
+            return
+          }
+        }
         // In edit-path mode with anchor(s) selected, delete the anchors; leave
         // node itself alone. A deletion that would drop below 2 segments is a
         // no-op (avoid degenerate paths).
@@ -204,8 +217,14 @@ export function useKeyboardShortcuts(extras?: Extras) {
         if (store.toolMode === 'pen') store.penCancel()
         else if (store.toolMode === 'edit-path') store.exitPathEdit()
         else if (store.toolMode === 'knife') store.setToolMode('select')
+        else if (store.toolMode === 'crop-image') store.cancelCrop()
         else if (store.editingBooleanId) store.setEditingBooleanId(null)
         else store.clearSelection()
+        return
+      }
+      if (e.key === 'Enter' && store.toolMode === 'crop-image') {
+        e.preventDefault()
+        store.applyCrop()
         return
       }
       if (e.key.startsWith('Arrow')) {

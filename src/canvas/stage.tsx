@@ -18,6 +18,10 @@ import { GradientHandleOverlay } from '@/canvas/gradient-handle-overlay'
 const PathEditOverlay = lazy(() =>
   import('@/canvas/path-edit-overlay').then((m) => ({ default: m.PathEditOverlay })),
 )
+
+const ImageCropOverlay = lazy(() =>
+  import('@/canvas/image-crop-overlay').then((m) => ({ default: m.ImageCropOverlay })),
+)
 import { ContextMenu } from '@/editor/context-menu'
 import { computeSnap, type Bbox, type SnapGuide } from '@/composition/alignment'
 import { constrainToAxis } from '@/composition/geom'
@@ -89,6 +93,7 @@ export function EditorCanvas() {
   const toolMode = useCanvasStore((s) => s.toolMode)
   const penDraft = useCanvasStore((s) => s.penDraft)
   const pathEditState = useCanvasStore((s) => s.pathEditState)
+  const cropEditState = useCanvasStore((s) => s.cropEditState)
   const setViewport = useCanvasStore((s) => s.setViewport)
   const select = useCanvasStore((s) => s.select)
   const toggleSelect = useCanvasStore((s) => s.toggleSelect)
@@ -586,6 +591,9 @@ export function EditorCanvas() {
       className={cn(
         'relative h-full w-full overflow-hidden',
         toolMode === 'knife' && 'cursor-crosshair',
+        toolMode === 'crop-image' &&
+          (cropEditState?.mode === 'polygon' || cropEditState?.mode === 'lasso') &&
+          'cursor-crosshair',
       )}
       onDragEnter={(e) => {
         if (Array.from(e.dataTransfer.types).includes('Files')) {
@@ -653,6 +661,11 @@ export function EditorCanvas() {
             )}
             {toolMode === 'pen' && penDraft && (
               <PenDraftPreview draft={penDraft} scale={viewport.scale} />
+            )}
+            {toolMode === 'crop-image' && cropEditState && (
+              <Suspense fallback={null}>
+                <ImageCropOverlay scale={viewport.scale} />
+              </Suspense>
             )}
             {toolMode === 'edit-path' && pathEditState && (() => {
               const n = nodes.find((x) => x.id === pathEditState.nodeId)

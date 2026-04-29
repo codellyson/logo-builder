@@ -9,6 +9,7 @@ import { useKeyboardShortcuts } from '@/editor/keyboard'
 import { EditorCanvas } from '@/canvas/stage'
 import { PalettePanel } from '@/colors/palette-panel'
 import { ZoomControls } from '@/editor/zoom-controls'
+import { CropModeToolbar } from '@/editor/crop-mode-toolbar'
 import { EmptyState } from '@/editor/empty-state'
 import { useAutosave, restoreActiveProjectOnMount } from '@/state/autosave'
 import { useCanvasStore } from '@/state/canvas-store'
@@ -128,6 +129,11 @@ export function Editor() {
           <DraggablePanel name="zoom" defaultStyle={{ position: 'absolute', right: 12, bottom: 12 }}>
             <ZoomControls />
           </DraggablePanel>
+          <div
+            className="pointer-events-none absolute bottom-12 left-1/2 -translate-x-1/2"
+          >
+            <CropModeToolbar />
+          </div>
           {!hasNodes && <EmptyState />}
         </main>
         <aside className="flex w-72 shrink-0 flex-col border-l border-line bg-surface">

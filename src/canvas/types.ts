@@ -199,6 +199,29 @@ export type GroupNode = NodeBase & {
   lockupRole?: LockupRole
 }
 
+// Image clip region in image-local coords. Render, bbox, and SVG export
+// all branch on `kind`. The asset's raw raster (blob + intrinsic size)
+// stays intact regardless of kind — reset-crop always restores the full
+// image. Pre-discriminator files (v8) had no `kind`; the load path tags
+// those as `kind: 'rect'` so they round-trip cleanly.
+export type ImageCropRect = {
+  kind: 'rect'
+  x: number
+  y: number
+  width: number
+  height: number
+  rotation: number
+}
+
+export type ImageCropPath = {
+  kind: 'path'
+  // Closed-loop SVG path data in image-local coords. Polygon mode emits
+  // `M ... L ... L ... Z`; lasso emits the same after RDP simplification.
+  data: string
+}
+
+export type ImageCrop = ImageCropRect | ImageCropPath
+
 // User-uploaded image or SVG, stored in the IndexedDB `assets` table and
 // referenced by id. The asset's content *is* the visual — no fill or stroke
 // — but opacity / blendMode (on NodeBase) still apply. Width / height are
@@ -208,6 +231,7 @@ export type AssetNode = NodeBase & {
   assetId: string
   width: number
   height: number
+  crop?: ImageCrop | null
 }
 
 export type BooleanNode = NodeBase & {

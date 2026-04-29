@@ -5,11 +5,12 @@ import type { Palette } from '@/colors/palette'
 // Bumped on each schema-breaking change. v2 added Fill (gradients sprint),
 // v3 widened stroke to Fill (stroke gradients), v4 promoted snapshots from
 // the old localStorage shape into a versioned ProjectSnapshot with
-// artboardBackground included, v5 added the `'asset'` node variant. v4 →
-// v5 is non-destructive (a v4 project loads cleanly into v5 code, just
-// without any asset nodes), so the load path auto-upgrades v4 snapshots
-// in place rather than rejecting them.
-export const SCHEMA_VERSION = 7
+// artboardBackground included, v5 added the `'asset'` node variant, v8
+// added the optional `crop` field on AssetNode (rect only), v9 introduced
+// the ImageCrop discriminator (kind: 'rect' | 'path') for arbitrary-shape
+// cuts. v8 crops were rect-only with no `kind`; the load path tags them as
+// `kind: 'rect'` so the union resolves cleanly.
+export const SCHEMA_VERSION = 9
 
 export type ProjectSnapshot = {
   version: number

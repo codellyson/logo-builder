@@ -7,6 +7,7 @@ import { useCanvasStore } from '@/state/canvas-store'
 import { loadIconImage, loadIconImageWithGradient } from '@/icons/icon-svg'
 import { polygonPoints, starPoints } from '@/composition/to-path'
 import { fillKonvaProps, fillSolidColor, scaleFill, strokeKonvaProps } from '@/composition/fills'
+import { traceCropPath } from '@/composition/crop-render'
 
 type Props = {
   node: CanvasNode
@@ -69,6 +70,12 @@ export function NodeRenderer({
   ghosted,
 }: Props) {
   if (node.hidden) return null
+
+  // While this asset is being cropped, the CropOverlay owns the visual
+  // (dim layer, bright preview, draft rect, transformer). Skipping the
+  // normal render here avoids a duplicate / fighting transformer.
+  const cropEditingId = useCanvasStore((s) => s.cropEditState?.nodeId ?? null)
+  if (cropEditingId === node.id && node.type === 'asset') return null
 
   const updateNode = useCanvasStore.getState().updateNode
 
@@ -244,7 +251,13 @@ export function NodeRenderer({
   }
 
   if (node.type === 'asset') {
-    return <AssetKonva node={node} commonProps={commonProps} />
+    const enterCrop = () => useCanvasStore.getState().enterImageCrop(node.id)
+    return (
+      <AssetKonva
+        node={node}
+        commonProps={{ ...commonProps, onDblClick: enterCrop, onDblTap: enterCrop }}
+      />
+    )
   }
 
   return <IconKonva node={node} commonProps={commonProps} />
@@ -403,6 +416,24 @@ function AssetKonva({
     )
   }
 
+  // Crop set → pre-render to an offscreen canvas sized to the crop AABB.
+  // We can't use `clipFunc` on a Konva Group because `getClientRect` (the
+  // metric the transformer / alignment / selection bbox all read) ignores
+  // it — the user would see crop visually correct but a transformer that
+  // still wraps the full source raster. Pre-rendering bakes the clip into
+  // a Konva.Image whose native bounds *are* the cropped region.
+  const c = node.crop
+  if (c) {
+    return (
+      <CroppedAssetKonva
+        node={node}
+        image={image}
+        crop={c}
+        commonProps={commonProps}
+      />
+    )
+  }
+
   return (
     <KonvaImage
       {...(commonProps as object)}
@@ -411,6 +442,148 @@ function AssetKonva({
       height={node.height}
     />
   )
+}
+
+function CroppedAssetKonva({
+  node,
+  image,
+  crop,
+  commonProps,
+}: {
+  node: AssetNode
+  image: HTMLImageElement | null
+  crop: NonNullable<AssetNode['crop']>
+  commonProps: Record<string, unknown>
+}) {
+  // Cropped frame: source image rasterized through the clip path. The
+  // canvas size matches the crop's AABB exactly so Konva.Image.bounds
+  // reflects the visible region. Re-renders only when the source image,
+  // crop shape, or original image dimensions change — drag/transform
+  // gestures don't touch any of these.
+  const cropped = useMemo(() => {
+    if (!image) return null
+    const aabb = cropAABB(crop)
+    if (aabb.width <= 0 || aabb.height <= 0) return null
+    const canvas = document.createElement('canvas')
+    canvas.width = Math.max(1, Math.ceil(aabb.width))
+    canvas.height = Math.max(1, Math.ceil(aabb.height))
+    const ctx = canvas.getContext('2d')
+    if (!ctx) return null
+    ctx.beginPath()
+    // Shift the crop path so the AABB's top-left becomes (0, 0) in the
+    // canvas; the source image then draws at the same negative offset.
+    ctx.save()
+    ctx.translate(-aabb.x, -aabb.y)
+    traceCropPath(ctx, crop)
+    ctx.restore()
+    ctx.clip()
+    ctx.drawImage(image, -aabb.x, -aabb.y, node.width, node.height)
+    return { canvas, aabb }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [image, crop, node.width, node.height])
+
+  if (!cropped) return null
+  // Drag end commits target.x()/y() back to node.x/y. For a cropped image
+  // the rendered Konva node sits offset by cropAABB.{x,y}, so we subtract
+  // the offset before saving — otherwise each drag would compound the
+  // offset and the source would walk off the visible frame.
+  const baseDragEnd = commonProps.onDragEnd as
+    | ((e: Konva.KonvaEventObject<DragEvent>) => void)
+    | undefined
+  const onDragEnd = (e: Konva.KonvaEventObject<DragEvent>) => {
+    if (e.target.id() !== node.id) {
+      baseDragEnd?.(e)
+      return
+    }
+    useCanvasStore.getState().updateNode(node.id, {
+      x: e.target.x() - cropped.aabb.x,
+      y: e.target.y() - cropped.aabb.y,
+    })
+  }
+  return (
+    <KonvaImage
+      {...(commonProps as object)}
+      image={cropped.canvas}
+      x={(commonProps.x as number) + cropped.aabb.x}
+      y={(commonProps.y as number) + cropped.aabb.y}
+      width={cropped.aabb.width}
+      height={cropped.aabb.height}
+      onDragEnd={onDragEnd}
+    />
+  )
+}
+
+// Scales a crop's coords by (sx, sy). Rect: x/y/w/h scale; rotation is
+// preserved (non-uniform scale + rotation is a known approximation — fine
+// for v1 since users mostly resize uniformly). Path: every point scales.
+function scaleAssetCrop(
+  crop: NonNullable<AssetNode['crop']>,
+  sx: number,
+  sy: number,
+): NonNullable<AssetNode['crop']> {
+  if (crop.kind === 'rect') {
+    return {
+      kind: 'rect',
+      x: crop.x * sx,
+      y: crop.y * sy,
+      width: Math.max(0.5, crop.width * sx),
+      height: Math.max(0.5, crop.height * sy),
+      rotation: crop.rotation,
+    }
+  }
+  const scaled = crop.data.replace(
+    /([ML])\s*(-?\d+(?:\.\d+)?)[\s,]+(-?\d+(?:\.\d+)?)/g,
+    (_, cmd: string, xStr: string, yStr: string) =>
+      `${cmd}${parseFloat(xStr) * sx},${parseFloat(yStr) * sy}`,
+  )
+  return { kind: 'path', data: scaled }
+}
+
+// AABB of the crop region in image-local coords. Mirrors the rect-corner
+// rotation in bbox.ts but kept inline here so the render path doesn't pull
+// the bbox module's full surface for one helper.
+function cropAABB(crop: NonNullable<AssetNode['crop']>): {
+  x: number
+  y: number
+  width: number
+  height: number
+} {
+  const pts: number[] = []
+  if (crop.kind === 'rect') {
+    const hw = crop.width / 2
+    const hh = crop.height / 2
+    const cx = crop.x + hw
+    const cy = crop.y + hh
+    const rad = (crop.rotation * Math.PI) / 180
+    const cos = Math.cos(rad)
+    const sin = Math.sin(rad)
+    for (const [ox, oy] of [
+      [-hw, -hh],
+      [hw, -hh],
+      [hw, hh],
+      [-hw, hh],
+    ] as Array<[number, number]>) {
+      pts.push(cx + ox * cos - oy * sin, cy + ox * sin + oy * cos)
+    }
+  } else {
+    const re = /[ML]\s*(-?\d+(?:\.\d+)?)[\s,]+(-?\d+(?:\.\d+)?)/g
+    let m: RegExpExecArray | null
+    while ((m = re.exec(crop.data)) !== null) {
+      pts.push(parseFloat(m[1]), parseFloat(m[2]))
+    }
+  }
+  let minX = Infinity
+  let minY = Infinity
+  let maxX = -Infinity
+  let maxY = -Infinity
+  for (let i = 0; i < pts.length; i += 2) {
+    if (pts[i] < minX) minX = pts[i]
+    if (pts[i] > maxX) maxX = pts[i]
+    if (pts[i + 1] < minY) minY = pts[i + 1]
+    if (pts[i + 1] > maxY) maxY = pts[i + 1]
+  }
+  if (minX === Infinity) return { x: 0, y: 0, width: 0, height: 0 }
+  return { x: minX, y: minY, width: maxX - minX, height: maxY - minY }
 }
 
 // Konva 10.2.5 has no `_strokeRadialGradient` — radial stroke props on a
@@ -572,13 +745,31 @@ async function bakeScale(node: CanvasNode, scaleX: number, scaleY: number, targe
       stroke: scaleFill(node.stroke, avg, avg),
     })
   } else if (node.type === 'asset') {
-    update(node.id, {
-      x,
-      y,
-      rotation,
-      width: Math.max(1, node.width * scaleX),
-      height: Math.max(1, node.height * scaleY),
-    })
+    if (node.crop) {
+      // Scale the crop in lockstep with the source dims so the visible
+      // region grows / shrinks together with the underlying raster. After
+      // scaling, the rendered Konva.Image still sits offset by the new
+      // crop AABB — subtract that offset so node.{x,y} stays anchored to
+      // the *source* origin (the same convention as no-crop).
+      const scaledCrop = scaleAssetCrop(node.crop, scaleX, scaleY)
+      const aabb = cropAABB(scaledCrop)
+      update(node.id, {
+        x: x - aabb.x,
+        y: y - aabb.y,
+        rotation,
+        width: Math.max(1, node.width * scaleX),
+        height: Math.max(1, node.height * scaleY),
+        crop: scaledCrop,
+      })
+    } else {
+      update(node.id, {
+        x,
+        y,
+        rotation,
+        width: Math.max(1, node.width * scaleX),
+        height: Math.max(1, node.height * scaleY),
+      })
+    }
   } else if (node.type === 'group') {
     update(node.id, { x, y, rotation })
   } else if (node.type === 'boolean') {

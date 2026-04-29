@@ -81,6 +81,12 @@ function MenuPanel({ pos, onClose }: { pos: { x: number; y: number }; onClose: (
     (n) => n.type === 'rect' || n.type === 'ellipse' || n.type === 'line',
   )
   const canTextToOutlines = selected.some((n) => n.type === 'text')
+  // Crop ops act on a single asset only — multi-asset crop has no clean
+  // UX (one rect per image vs. one shared rect both feel wrong).
+  const singleAsset =
+    selected.length === 1 && selected[0].type === 'asset' ? selected[0] : null
+  const canCropImage = !!singleAsset
+  const canResetCrop = !!singleAsset?.crop
 
   // Position-clamp so the menu doesn't fall off-screen. Estimate panel
   // size; an extra few pixels of slop is fine since the menu has a min
@@ -207,6 +213,27 @@ function MenuPanel({ pos, onClose }: { pos: { x: number; y: number }; onClose: (
           onClose()
         }}
       />
+      {(canCropImage || canResetCrop) && <Divider />}
+      {canCropImage && singleAsset && (
+        <Item
+          icon="lucide:crop"
+          label="Crop image"
+          onClick={() => {
+            useCanvasStore.getState().enterImageCrop(singleAsset.id)
+            onClose()
+          }}
+        />
+      )}
+      {canResetCrop && singleAsset && (
+        <Item
+          icon="lucide:image"
+          label="Reset crop"
+          onClick={() => {
+            useCanvasStore.getState().resetCrop(singleAsset.id)
+            onClose()
+          }}
+        />
+      )}
       {(canConvertToPath || canTextToOutlines || canBreakApart) && <Divider />}
       {canConvertToPath && (
         <Item

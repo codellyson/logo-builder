@@ -1,5 +1,6 @@
 import { DEFAULT_PALETTE } from '@/colors/palette'
 import { newId } from '@/lib/id'
+import type { AssetNode, CanvasNode } from '@/canvas/types'
 import {
   db,
   SCHEMA_VERSION,
@@ -58,21 +59,36 @@ export async function loadActiveProject(): Promise<ProjectRecord | null> {
 //    no effects, which loads as `undefined` and renders identically.
 //  - v6 → v7: added optional `lockupRole` on Group / Boolean. v6 records
 //    have no roles; export variants fall back to the heuristic.
+//  - v7 → v8: added optional `crop` on AssetNode. v7 records have no
+//    crops, which load as `undefined` and render the full image.
+//  - v8 → v9: introduced `ImageCrop` discriminator (kind: 'rect' | 'path').
+//    v8 crops were rect-only with no `kind` field; on read we tag them as
+//    `kind: 'rect'` so the union resolves cleanly.
 //
-// All upgrades just rewrite the version field; no shape migration needed.
+// Upgrades from v8 onward run a shape migration (tag crop kind); earlier
+// versions just rewrite the version field.
 async function maybeUpgradeSnapshot(rec: ProjectRecord): Promise<ProjectRecord | null> {
   const v = rec.snapshot.version
   if (v === SCHEMA_VERSION) return rec
   if (isLoadableVersion(v)) {
+    const migratedNodes =
+      v <= 8 ? rec.snapshot.nodes.map(tagAssetCropKind) : rec.snapshot.nodes
     const upgraded: ProjectRecord = {
       ...rec,
       updatedAt: Date.now(),
-      snapshot: { ...rec.snapshot, version: SCHEMA_VERSION },
+      snapshot: { ...rec.snapshot, nodes: migratedNodes, version: SCHEMA_VERSION },
     }
     await db.projects.put(upgraded)
     return upgraded
   }
   return null
+}
+
+function tagAssetCropKind(n: CanvasNode): CanvasNode {
+  if (n.type !== 'asset') return n
+  const c = n.crop as unknown as { kind?: 'rect' | 'path' } | null | undefined
+  if (!c || c.kind) return n
+  return { ...n, crop: { kind: 'rect', ...(c as object) } as AssetNode['crop'] }
 }
 
 // Always returns a valid active project. Order of preference:
@@ -113,7 +129,7 @@ export async function ensureActiveProject(): Promise<ProjectRecord> {
 function isLoadableVersion(v: number): boolean {
   // Mirrors maybeUpgradeSnapshot's accepted set: the current version, plus
   // any version we know how to migrate forward in place.
-  return v === SCHEMA_VERSION || v === 4 || v === 5 || v === 6
+  return v === SCHEMA_VERSION || v === 4 || v === 5 || v === 6 || v === 7 || v === 8
 }
 
 export async function createEmptyProject(name: string): Promise<ProjectRecord> {

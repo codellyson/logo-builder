@@ -83,6 +83,7 @@ type Opts = {
 type Defs = {
   gradients: string[]
   filters: string[]
+  clipPaths: string[]
 }
 
 // Builds an SVG `<filter>` for a single effect. Filter region is set
@@ -300,21 +301,43 @@ async function booleanSvg(n: BooleanNode, allNodes: CanvasNode[], defs: Defs): P
 // inside a `<g transform="scale(sx sy)">` wrapper — same pattern as
 // icons. Missing assets emit nothing (fail-soft; the canvas placeholder
 // is enough of a signal in the editor).
-async function assetSvg(n: AssetNode): Promise<string> {
+//
+// Crop: emits a `<clipPath>` whose <rect> is rotated around its center.
+// The clip path's userSpaceOnUse coords are image-local (matching the
+// runtime clipFunc), so the parent <g transform="..."> applies the
+// image's outer transform on top.
+async function assetSvg(n: AssetNode, defs: Defs): Promise<string> {
   const rec = await getAsset(n.assetId)
   if (!rec) return ''
+  let body = ''
   if (rec.kind === 'image') {
     const dataUrl = await blobToDataURL(rec.blob)
-    return `<image href="${dataUrl}" width="${n.width}" height="${n.height}" preserveAspectRatio="none"/>`
-  }
-  if (rec.kind === 'svg') {
+    body = `<image href="${dataUrl}" width="${n.width}" height="${n.height}" preserveAspectRatio="none"/>`
+  } else if (rec.kind === 'svg') {
     const text = await rec.blob.text()
     const inner = text.replace(/^<svg[^>]*>/, '').replace(/<\/svg>\s*$/, '')
     const sx = rec.width === 0 ? 1 : n.width / rec.width
     const sy = rec.height === 0 ? 1 : n.height / rec.height
-    return `<g transform="scale(${sx} ${sy})">${inner}</g>`
+    body = `<g transform="scale(${sx} ${sy})">${inner}</g>`
+  } else {
+    return ''
   }
-  return ''
+  const c = n.crop
+  if (!c) return body
+  const clipId = `crop-${n.id}`
+  if (c.kind === 'rect') {
+    const cx = c.x + c.width / 2
+    const cy = c.y + c.height / 2
+    const rotXf = c.rotation ? ` transform="rotate(${c.rotation} ${cx} ${cy})"` : ''
+    defs.clipPaths.push(
+      `<clipPath id="${clipId}" clipPathUnits="userSpaceOnUse"><rect x="${c.x}" y="${c.y}" width="${c.width}" height="${c.height}"${rotXf}/></clipPath>`,
+    )
+  } else {
+    defs.clipPaths.push(
+      `<clipPath id="${clipId}" clipPathUnits="userSpaceOnUse"><path d="${c.data}"/></clipPath>`,
+    )
+  }
+  return `<g clip-path="url(#${clipId})">${body}</g>`
 }
 
 function blobToDataURL(blob: Blob): Promise<string> {
@@ -357,7 +380,7 @@ async function nodeSvg(
   else if (n.type === 'text') body = await textSvg(n, defs)
   else if (n.type === 'icon') body = await iconSvg(n, defs)
   else if (n.type === 'boolean') body = await booleanSvg(n, allNodes, defs)
-  else if (n.type === 'asset') body = await assetSvg(n)
+  else if (n.type === 'asset') body = await assetSvg(n, defs)
   const wrapped = wrapWithEffects(n.id, n.effects, body, defs)
   return `<g${tf}${opacity}${blend}>${wrapped}</g>`
 }
@@ -370,7 +393,7 @@ export async function serializeSvg({ nodes, width, height, background, padding }
     if (arr) arr.push(n)
     else childrenOf.set(n.parentId, [n])
   }
-  const defs: Defs = { gradients: [], filters: [] }
+  const defs: Defs = { gradients: [], filters: [], clipPaths: [] }
   const topLevel = nodes.filter((n) => !n.parentId && !n.hidden)
   const bodies: string[] = []
   for (const n of topLevel) bodies.push(await nodeSvg(n, childrenOf, nodes, defs))
@@ -385,7 +408,7 @@ export async function serializeSvg({ nodes, width, height, background, padding }
   const bg = background
     ? `<rect x="${vbX}" y="${vbY}" width="${vbW}" height="${vbH}" fill="${background}"/>`
     : ''
-  const defsContent = defs.gradients.join('') + defs.filters.join('')
+  const defsContent = defs.gradients.join('') + defs.filters.join('') + defs.clipPaths.join('')
   const defsBlock = defsContent ? `<defs>${defsContent}</defs>` : ''
   return `<?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="${vbX} ${vbY} ${vbW} ${vbH}" width="${vbW}" height="${vbH}">${defsBlock}${bg}${bodies.join('')}</svg>`
