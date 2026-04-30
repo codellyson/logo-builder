@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { Rect, Ellipse, Line, Text, Image as KonvaImage, Path, Group } from 'react-konva'
 import type Konva from 'konva'
-import type { AssetNode, CanvasNode, Effect, IconNode, RadialFill } from '@/canvas/types'
+import type { AssetNode, CanvasNode, Effect,   IconNode, RadialFill } from '@/canvas/types'
 import { getAsset } from '@/persistence/assets'
 import { useCanvasStore } from '@/state/canvas-store'
 import { loadIconImage, loadIconImageWithGradient } from '@/icons/icon-svg'
@@ -324,7 +324,7 @@ function IconKonva({
   // the gradient def inline, and rasterize. Multi-color icons collapse to a
   // single gradient by design (the panel surfaces this).
   const fill = node.fill
-  const isGradient = fill.type !== 'solid'
+  const isGradient = fill?.type !== 'solid'
   const iconColor = !isGradient ? fillSolidColor(fill) ?? '#000000' : ''
   // Serialize the gradient so the effect re-runs only when content changes,
   // not when a new fill object with identical content arrives.
@@ -335,7 +335,8 @@ function IconKonva({
     const promise = isGradient
       ? loadIconImageWithGradient(
           node.iconName,
-          fill as Exclude<typeof fill, { type: 'solid' }>,
+          // @ts-expect-error The fill type is guaranteed to be linear or radial here because of the `isGradient` check, but TypeScript doesn't narrow the union properly.
+          fill as Exclude<typeof fill, { type: 'solid' }> ,
           node.width,
           node.height,
         )

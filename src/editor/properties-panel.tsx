@@ -747,7 +747,7 @@ function IconFields({ node }: { node: IconNode }) {
           allowNone
         />
       </FieldRow>
-      {node.fill.type !== 'solid' && (
+      {node.fill?.type !== 'solid' && (
         <div className="rounded border border-line bg-surface-2/50 px-2 py-1.5 text-[10px] text-ink-4">
           Gradient on icons recolors all paths — multi-color icons collapse
           to a single ramp.
